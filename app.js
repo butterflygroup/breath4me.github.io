@@ -2,8 +2,7 @@
  * Breath with Daniel: cycle starts at 12 o'clock; dot travels clockwise once per pattern.
  * Coordinate system matches SVG arcs (fraction 0→1 clockwise from top).
  */
-(function () {
-  'use strict';
+import { PATTERN_TEMPLATES } from './patterns.js';
 
   const VIEW_CX = 100;
   const VIEW_CY = 100;
@@ -11,9 +10,11 @@
   const MIN_SEC = 0.5;
   const URL_PARAM = 'q';
   const URL_DEBOUNCE_MS = 200;
+  /** When generated share URL exceeds this length, Copy link logs a browser console heads-up. */
+  const URL_PAYLOAD_WARN_LENGTH = 2000;
   const SEGMENT_LABEL_MAX_LEN = 40;
   const SHARE_NOTE_MAX_LEN = 800;
-  const DEFAULT_PAGE_TITLE = 'Breath with Daniel';
+  const DEFAULT_PAGE_TITLE = 'Breathed with Daniel';
   const SESSION_TITLE_MAX_LEN = 80;
 
   const COPY_BTN_LABEL_DEFAULT = 'Copy link';
@@ -59,209 +60,6 @@
     },
   ];
 
-  function preset_seg(kind, sec) {
-    return {
-      kind,
-      sec,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    };
-  }
-
-  function box_breathing(sec) {
-    return [
-      preset_seg('in', sec),
-      preset_seg('hold', sec),
-      preset_seg('out', sec),
-      preset_seg('hold', sec),
-    ];
-  }
-
-  /** Classical 4-count box pattern with nose-guided inhale and exhale. */
-  const SEGMENTS_BOX_4444_AIRWAY = [
-    {
-      kind: 'in',
-      sec: 4,
-      label: '',
-      nasalCue: 'in',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-    {
-      kind: 'hold',
-      sec: 4,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-    {
-      kind: 'out',
-      sec: 4,
-      label: '',
-      nasalCue: 'out',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-    {
-      kind: 'hold',
-      sec: 4,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-  ];
-
-  const SEGMENTS_LOWER_PAIN_4_7_2 = [
-    {
-      kind: 'in',
-      sec: 4,
-      label: '',
-      nasalCue: 'in',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'in',
-    },
-    {
-      kind: 'out',
-      sec: 7,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'out',
-      chestCue: 'none',
-      stomachCue: 'out',
-    },
-    {
-      kind: 'hold',
-      sec: 2,
-      label: 'Pause',
-      nasalCue: 'none',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-  ];
-
-  const SEGMENTS_POWER_BREATHS = [
-    {
-      kind: 'in',
-      sec: 2,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'none',
-      chestCue: 'in',
-      stomachCue: 'in',
-    },
-    {
-      kind: 'out',
-      sec: 2,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'out',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-  ];
-
-  /** Shared nose-in / mouth-out cues for classical 4-7-8 (Weil-style). */
-  const SEGMENTS_478_AIRWAY = [
-    {
-      kind: 'in',
-      sec: 4,
-      label: '',
-      nasalCue: 'in',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-    {
-      kind: 'hold',
-      sec: 7,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'none',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-    {
-      kind: 'out',
-      sec: 8,
-      label: '',
-      nasalCue: 'none',
-      mouthCue: 'out',
-      chestCue: 'none',
-      stomachCue: 'none',
-    },
-  ];
-
-  const PATTERN_TEMPLATES = [
-    {
-      id: 'box4444',
-      label: 'Box breathing',
-      segments: SEGMENTS_BOX_4444_AIRWAY,
-      shareNote:
-        'Navy SEALs use box breathing for focus under stress. Nose inhale 4, hold 4, exhale 4, hold 4. Repeat 5–10 min; visualize tracing a box. Often cited: nervous regulation, stress/anxiety, focus, HRV—not medical advice.',
-    },
-    {
-      id: 'breath478',
-      label: '4-7-8 Breathing',
-      segments: SEGMENTS_478_AIRWAY,
-      shareNote:
-        'Popularized by Dr. Andrew Weil. Quiet nose inhale 4s, hold 7s, mouth exhale whoosh 8s. Repeat ~4 cycles; start slower if new. Benefits often cited: vagus/parasympathetic, HR/BP, anxiety easing, relaxation/sleep—not medical advice.',
-    },
-    {
-      id: 'lower-bp-5-8',
-      label: 'Lower blood pressure',
-      segments: [preset_seg('in', 5), preset_seg('out', 8)],
-    },
-    {
-      id: 'lower-pain-4-7-2',
-      label: 'Lower pain',
-      segments: SEGMENTS_LOWER_PAIN_4_7_2,
-      shareNote:
-        'Session idea: 5–10 min, diaphragmatic (belly) breathing. Combine with mindfulness: focus on breath or visualize discomfort easing on the exhale.',
-    },
-    {
-      id: 'awaken-5-2-3-2',
-      label: 'Awaken',
-      segments: [
-        preset_seg('in', 5),
-        preset_seg('hold', 2),
-        preset_seg('out', 3),
-        preset_seg('hold', 2),
-      ],
-    },
-    {
-      id: 'power-breaths',
-      label: 'Power breaths',
-      segments: SEGMENTS_POWER_BREATHS,
-      shareNote:
-        `Power breaths (~30–40 breath repetitions suggested): inhale belly then chest deeply (nose or mouth—balloon inhale); passive mouth exhale, no forcing. Steady rhythmic bursts, no long pauses.
-
-Warnings: This involves hyperventilation and breath holds, which can cause dizziness, fainting, or tingling. Always practice sitting/lying down in a safe environment.
-• Avoid if pregnant, epileptic, have high blood pressure, heart issues, or panic disorders—consult a doctor first.
-• Never combine with water or activities requiring full attention.
-• Stop if you feel unwell. Start slow and listen to your body. Not medical advice.`,
-    },
-    {
-      id: 'calm-anxiety-478',
-      label: 'Calm anxiety',
-      segments: SEGMENTS_478_AIRWAY,
-      shareNote:
-        'In-the-moment when anxiety spikes: 4-7-8 breath for acute calm. Nose inhale 4s, hold 7s, mouth exhale 8s. Repeat ~4 full laps; good for interrupting racing thoughts. Not medical advice.',
-    },
-    { id: 'box6666', label: 'Box 6-6-6-6', segments: box_breathing(6) },
-    { id: 'box8888', label: 'Box 8-8-8-8', segments: box_breathing(8) },
-  ];
-
   const PHASE_LABELS = {
     in: 'Breathe in',
     out: 'Breathe out',
@@ -293,6 +91,7 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
   const templateListEl = document.getElementById('template-list');
   const shareDescriptionEl = document.getElementById('share-description');
   const sessionTitleEl = document.getElementById('session-title');
+  const headerSiteTitleEl = document.getElementById('header-site-title');
   const sessionTimerMinutesEl = document.getElementById('session-timer-minutes');
   const sessionTimerSecondsEl = document.getElementById('session-timer-seconds');
   const sessionTimerDisplayEl = document.getElementById('session-timer-display');
@@ -347,6 +146,15 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
     return Math.max(MIN_SEC, Math.round(n * 10) / 10);
   }
 
+  /** Spinner clicks are approximate by x; avoids changing step during normal text clicks. */
+  function click_in_segment_duration_spinner_zone(el, clientX) {
+    const r = el.getBoundingClientRect();
+    if (!(r.width > 0 && r.height > 0)) return false;
+    const edge = Math.min(42, Math.max(26, Math.round(r.width * 0.2)));
+    const rtl = getComputedStyle(el).direction === 'rtl';
+    return rtl ? clientX <= r.left + edge : clientX >= r.right - edge;
+  }
+
   function clamp01(x) {
     if (!Number.isFinite(x)) return 0;
     return Math.max(0, Math.min(1, x));
@@ -359,11 +167,17 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
     return t.slice(0, SEGMENT_LABEL_MAX_LEN);
   }
 
-  function sanitize_share_note(raw) {
+  /**
+   * @param {string | null | undefined} raw
+   * @param {{ trimEnds?: boolean }} [opts] — set `trimEnds: false` while the Pattern Details textarea is being edited so spaces aren't stripped mid-typing.
+   */
+  function sanitize_share_note(raw, opts = {}) {
+    const trimEnds = opts.trimEnds !== false;
     if (raw == null || typeof raw !== 'string') return '';
     let t = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
     t = t.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
-    return t.trim().slice(0, SHARE_NOTE_MAX_LEN);
+    if (trimEnds) t = t.trim();
+    return t.slice(0, SHARE_NOTE_MAX_LEN);
   }
 
   function sanitize_session_title(raw) {
@@ -378,7 +192,9 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
   }
 
   function sync_title_ui() {
-    document.title = effective_title();
+    const title = effective_title();
+    document.title = title;
+    if (headerSiteTitleEl) headerSiteTitleEl.textContent = title;
     if (sessionTitleEl) sessionTitleEl.value = sessionTitle;
   }
 
@@ -1135,6 +951,15 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
     const payload = serialize_url_payload(segments);
     u.searchParams.set(URL_PARAM, payload);
     const text = u.toString();
+    if (
+      typeof console !== 'undefined' &&
+      typeof console.warn === 'function' &&
+      text.length >= URL_PAYLOAD_WARN_LENGTH
+    ) {
+      console.warn(
+        `[Breath] Shared URL length is ${text.length} characters; shorten Pattern Details if copying fails.`,
+      );
+    }
 
     clearTimeout(copyResetTimer);
     copyResetTimer = null;
@@ -1287,6 +1112,33 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
       const inp = labDur.querySelector('input');
       inp.value = String(seg.sec);
 
+      const restore_duration_step_attr = () => inp.setAttribute('step', '0.1');
+      inp.addEventListener('pointerdown', (e) => {
+        if (e.button !== 0) return;
+        if (!click_in_segment_duration_spinner_zone(inp, e.clientX)) return;
+        inp.setAttribute('step', '1');
+        const restore = restore_duration_step_attr;
+        window.addEventListener('pointerup', restore, { capture: true, once: true });
+        window.addEventListener('pointercancel', restore, {
+          capture: true,
+          once: true,
+        });
+      });
+
+      inp.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+        if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        e.preventDefault();
+        const delta = e.key === 'ArrowUp' ? 1 : -1;
+        const parsed =
+          inp.value.trim() === '' ? NaN : Number(inp.value);
+        const base = Number.isFinite(parsed) ? parsed : seg.sec;
+        const v = clampSec(base + delta);
+        inp.value = String(v);
+        seg.sec = v;
+        on_pattern_edited(true);
+      });
+
       inp.addEventListener('input', () => {
         const v = clampSec(Number(inp.value));
         seg.sec = v;
@@ -1318,13 +1170,6 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
         lblInp.value = seg.label;
         on_pattern_edited(true);
       });
-
-      fields.appendChild(labKind);
-      fields.appendChild(labDur);
-
-      const notesCuesWrap = document.createElement('div');
-      notesCuesWrap.className = 'segment-notes-cues';
-      notesCuesWrap.appendChild(labLbl);
 
       const cuesDetails = document.createElement('details');
       cuesDetails.className = 'segment-cues-shell';
@@ -1419,8 +1264,11 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
 
       cuesDetails.appendChild(cuesSummary);
       cuesDetails.appendChild(cuesInner);
-      notesCuesWrap.appendChild(cuesDetails);
-      fields.appendChild(notesCuesWrap);
+
+      fields.appendChild(labKind);
+      fields.appendChild(labDur);
+      fields.appendChild(cuesDetails);
+      fields.appendChild(labLbl);
 
       const moves = document.createElement('div');
       moves.className = 'segment-row-moves';
@@ -1518,6 +1366,12 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
 
   function apply_default_pattern(resetPlayback) {
     apply_preset(DEFAULT_PATTERN, resetPlayback);
+    shareNote = '';
+    sessionTitle = '';
+    if (shareDescriptionEl) shareDescriptionEl.value = '';
+    sync_title_ui();
+    sync_share_textarea_height();
+    schedule_url_replace();
   }
 
   function render_template_list() {
@@ -1532,6 +1386,8 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
       btn.setAttribute('aria-label', `Load pattern: ${t.label}`);
       btn.addEventListener('click', () => {
         apply_preset(t.segments);
+        sessionTitle = sanitize_session_title(t.label);
+        sync_title_ui();
         const raw =
           typeof t.shareNote === 'string' ? t.shareNote.trim() : '';
         if (raw !== '') {
@@ -1542,6 +1398,7 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
           if (shareDescriptionEl) shareDescriptionEl.value = '';
         }
         schedule_url_replace();
+        sync_share_textarea_height();
       });
       li.appendChild(btn);
       templateListEl.appendChild(li);
@@ -1568,6 +1425,7 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
     refresh_session_timer_button_state();
     if (shareDescriptionEl) shareDescriptionEl.value = shareNote;
     sync_title_ui();
+    sync_share_textarea_height();
   }
 
   function on_session_title_edited() {
@@ -1579,12 +1437,32 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
     schedule_url_replace();
   }
 
-  function on_share_note_edited() {
+  function sync_share_textarea_height() {
     if (!shareDescriptionEl) return;
-    const next = sanitize_share_note(shareDescriptionEl.value);
+    const ta = shareDescriptionEl;
+    const maxHRaw = parseFloat(getComputedStyle(ta).maxHeight);
+    const maxH = Number.isFinite(maxHRaw) ? maxHRaw : Infinity;
+
+    ta.style.overflowY = 'hidden';
+    ta.style.height = 'auto';
+    const sh = ta.scrollHeight;
+    if (sh > maxH) {
+      ta.style.height = `${maxH}px`;
+      ta.style.overflowY = 'auto';
+    } else {
+      ta.style.height = `${sh}px`;
+    }
+  }
+
+  function on_share_note_edited(trimEnds = true) {
+    if (!shareDescriptionEl) return;
+    const next = sanitize_share_note(shareDescriptionEl.value, {
+      trimEnds,
+    });
     shareNote = next;
     if (shareDescriptionEl.value !== next) shareDescriptionEl.value = next;
     schedule_url_replace();
+    sync_share_textarea_height();
   }
 
   init_segments_from_location();
@@ -1614,8 +1492,17 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
   btnCopy.addEventListener('click', () => void copy_link());
 
   if (shareDescriptionEl) {
-    shareDescriptionEl.addEventListener('input', () => on_share_note_edited());
-    shareDescriptionEl.addEventListener('change', () => on_share_note_edited());
+    shareDescriptionEl.addEventListener('input', () =>
+      on_share_note_edited(false),
+    );
+    shareDescriptionEl.addEventListener('change', () =>
+      on_share_note_edited(true),
+    );
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => sync_share_textarea_height()).observe(
+        shareDescriptionEl,
+      );
+    }
   }
 
   if (sessionTitleEl) {
@@ -1689,4 +1576,9 @@ Warnings: This involves hyperventilation and breath holds, which can cause dizzi
   sync_visual_all();
 
   schedule_url_replace();
-})();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register(
+      new URL('./sw.js', import.meta.url),
+    ).catch(() => {});
+  }

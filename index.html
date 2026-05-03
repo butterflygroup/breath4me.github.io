@@ -3,23 +3,47 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Breath with Daniel</title>
+    <meta
+      name="description"
+      content="Custom breathing rhythm on a circle: build inhale, hold, and exhale phases, try presets (box, 4-7-8, and more), session timer, and share your pattern via URL."
+    />
+    <title>Breathed with Daniel</title>
+    <link rel="canonical" href="https://butterflygroup.github.io/breath4me.github.io/" />
+    <meta property="og:title" content="Breathed with Daniel" />
+    <meta
+      property="og:description"
+      content="Custom breathing rhythm on a circle: presets, session timer, cues, and shareable pattern links."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://butterflygroup.github.io/breath4me.github.io/"
+    />
+    <meta
+      property="og:image"
+      content="https://butterflygroup.github.io/breath4me.github.io/og-image.png"
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:image"
+      content="https://butterflygroup.github.io/breath4me.github.io/og-image.png"
+    />
+    <meta name="twitter:title" content="Breathed with Daniel" />
+    <meta
+      name="twitter:description"
+      content="Custom breathing rhythm on a circle: presets, session timer, and shareable URLs."
+    />
     <link rel="stylesheet" href="./styles.css" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#171b24" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
   </head>
   <body>
     <div class="app">
       <header class="header">
-        <h1 class="site-title-shell">
-          <input
-            type="text"
-            id="session-title"
-            class="session-title-input"
-            maxlength="80"
-            spellcheck="true"
-            placeholder="Breath with Daniel"
-            aria-label="Practice title"
-          />
-        </h1>
+        <h1 id="header-site-title" class="site-title">Breathed with Daniel</h1>
         <p class="tagline">
           Custom breathing rhythm on a circle. One full lap is one cycle.
         </p>
@@ -213,42 +237,6 @@
               </div>
             </div>
           </div>
-        </section>
-
-        <section
-          class="share-panel"
-          aria-labelledby="pattern-details-heading"
-        >
-          <h2 id="pattern-details-heading" class="share-panel-title">
-            <label
-              class="share-panel-heading-label"
-              for="share-description"
-            >
-              Pattern Details
-            </label>
-          </h2>
-          <textarea
-            id="share-description"
-            class="share-panel-textarea"
-            name="share-description"
-            rows="3"
-            maxlength="800"
-            aria-labelledby="pattern-details-heading"
-            spellcheck="true"
-            placeholder="Optional note for recipients…"
-          ></textarea>
-        </section>
-        </div>
-
-        <section class="templates-panel" aria-labelledby="templates-heading">
-          <h2 id="templates-heading" class="templates-panel-title">
-            Templates
-          </h2>
-          <p class="templates-panel-lead">
-            Start from a preset, then customize in Pattern below.
-          </p>
-          <ul id="template-list" class="template-list"></ul>
-        </section>
 
         <section class="playback-panel" aria-labelledby="playback-heading">
           <h2 id="playback-heading" class="visually-hidden">Practice</h2>
@@ -261,35 +249,105 @@
           </button>
         </section>
 
-        <section class="pattern-panel" aria-label="Pattern builder">
-          <div class="pattern-panel-body">
-            <div class="transport">
-              <button type="button" id="btn-reset-pattern" class="btn">
-                Reset
-              </button>
-              <button
-                type="button"
-                id="btn-copy-link"
-                class="btn btn-copy-link"
-                aria-label="Copy breathing pattern URL"
-              >
-                Copy link
-              </button>
-            </div>
-
-            <div class="segments-head">
-              <h2>Pattern</h2>
-              <button type="button" id="btn-add-segment" class="btn small">
-                Add segment
-              </button>
-            </div>
-
-            <ul id="segment-list" class="segment-list"></ul>
-          </div>
         </section>
+
+        </div>
+
+        <div class="main-side-column">
+          <section class="templates-panel" aria-labelledby="templates-heading">
+            <details class="templates-details" open>
+              <summary class="templates-summary">
+                <h2 id="templates-heading" class="templates-panel-title">
+                  Templates
+                </h2>
+              </summary>
+              <div class="templates-details-inner">
+                <ul id="template-list" class="template-list"></ul>
+              </div>
+            </details>
+          </section>
+
+          <section class="pattern-panel" aria-label="Pattern builder">
+            <div class="pattern-panel-body">
+              <div class="transport">
+                <button type="button" id="btn-reset-pattern" class="btn">
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  id="btn-copy-link"
+                  class="btn btn-copy-link"
+                  aria-label="Copy breathing pattern URL"
+                >
+                  Copy link
+                </button>
+              </div>
+
+              <div class="segments-head">
+                <h2>Pattern</h2>
+                <button type="button" id="btn-add-segment" class="btn small">
+                  Add segment
+                </button>
+              </div>
+
+              <ul id="segment-list" class="segment-list"></ul>
+            </div>
+
+            <div class="pattern-panel-title-field">
+              <input
+                type="text"
+                id="session-title"
+                class="session-title-input pattern-panel-session-title-input"
+                maxlength="80"
+                spellcheck="true"
+                placeholder="Title of the pattern..."
+                aria-label="Pattern title"
+                aria-describedby="session-title-edit-hint"
+              />
+              <p id="session-title-edit-hint" class="editable-field-hint">
+                click to edit title
+              </p>
+            </div>
+
+            <section
+              class="share-panel"
+              aria-labelledby="pattern-details-heading"
+            >
+              <h2
+                id="pattern-details-heading"
+                class="share-panel-title visually-hidden"
+              >
+                <label
+                  class="share-panel-heading-label"
+                  for="share-description"
+                >
+                  Pattern Details
+                </label>
+              </h2>
+              <textarea
+                id="share-description"
+                class="share-panel-textarea"
+                name="share-description"
+                rows="1"
+                maxlength="800"
+                aria-labelledby="pattern-details-heading"
+                aria-describedby="share-description-edit-hint"
+                spellcheck="true"
+                placeholder="Description of the pattern..."
+              ></textarea>
+              <p id="share-description-edit-hint" class="editable-field-hint">
+                click to edit description
+              </p>
+            </section>
+          </section>
+        </div>
       </main>
+
+      <footer class="site-disclaimer">
+        Educational tool only — not medical advice.
+      </footer>
     </div>
 
-    <script src="./app.js" defer></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
