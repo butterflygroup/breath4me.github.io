@@ -3,19 +3,30 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Breath4me</title>
+    <title>Breath with Daniel</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app">
       <header class="header">
-        <h1>Breath4me</h1>
+        <h1 class="site-title-shell">
+          <input
+            type="text"
+            id="session-title"
+            class="session-title-input"
+            maxlength="80"
+            spellcheck="true"
+            placeholder="Breath with Daniel"
+            aria-label="Practice title"
+          />
+        </h1>
         <p class="tagline">
           Custom breathing rhythm on a circle. One full lap is one cycle.
         </p>
       </header>
 
       <main class="main">
+        <div class="main-viz-stack">
         <section class="viz" aria-label="Breathing cycle visualization">
           <div class="viz-ring-wrap">
             <svg
@@ -41,6 +52,84 @@
               <circle id="viz-dot" class="viz-dot" r="8" aria-hidden="true" />
             </svg>
 
+            <div
+              id="viz-nasal-cue"
+              class="viz-nasal-cue viz-nasal-cue--off"
+              aria-hidden="true"
+            >
+              <span class="viz-cue-label">Nose</span>
+              <span class="viz-nasal-arrow" id="viz-nasal-arrow"></span>
+              <svg
+                class="viz-nasal-nose-svg"
+                viewBox="0 0 32 20"
+                width="22"
+                height="14"
+                aria-hidden="true"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  d="M6 16 Q16 4 26 16"
+                />
+              </svg>
+            </div>
+
+            <div
+              id="viz-mouth-cue"
+              class="viz-mouth-cue viz-mouth-cue--off"
+              aria-hidden="true"
+            >
+              <span class="viz-mouth-arrow" id="viz-mouth-arrow"></span>
+              <svg
+                class="viz-mouth-svg"
+                viewBox="0 0 32 20"
+                width="22"
+                height="14"
+                aria-hidden="true"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  d="M7 10 Q16 16 25 10"
+                />
+              </svg>
+              <span class="viz-cue-label">Mouth</span>
+            </div>
+
+            <div
+              id="viz-chest-meter"
+              class="viz-body-meter viz-body-meter--chest viz-chest-meter--off"
+              aria-hidden="true"
+            >
+              <span class="viz-cue-label">Chest</span>
+              <div class="viz-meter-track">
+                <div
+                  id="viz-chest-fill"
+                  class="viz-meter-fill"
+                  aria-hidden="true"
+                ></div>
+              </div>
+            </div>
+
+            <div
+              id="viz-stomach-meter"
+              class="viz-body-meter viz-body-meter--stomach viz-stomach-meter--off"
+              aria-hidden="true"
+            >
+              <div class="viz-meter-track">
+                <div
+                  id="viz-stomach-fill"
+                  class="viz-meter-fill"
+                  aria-hidden="true"
+                ></div>
+              </div>
+              <span class="viz-cue-label">Stomach</span>
+            </div>
+
             <div class="viz-center-readout">
               <div class="viz-center-readout-inner">
                 <p
@@ -51,6 +140,12 @@
                   —
                 </p>
                 <p class="phase-countdown" id="phase-countdown" aria-live="polite"></p>
+                <p
+                  id="phase-announce"
+                  class="visually-hidden"
+                  aria-live="polite"
+                  aria-atomic="true"
+                ></p>
               </div>
             </div>
           </div>
@@ -59,35 +154,138 @@
             <p class="cycle-total">
               Cycle: <strong id="cycle-total">0s</strong>
             </p>
+            <div class="viz-session-timer">
+              <button
+                type="button"
+                id="btn-session-timer-expand"
+                class="viz-session-timer-summary"
+                aria-expanded="false"
+                aria-controls="session-timer-editor"
+                title="Show session timer controls"
+              >
+                <span
+                  id="session-timer-display"
+                  class="viz-session-timer-display"
+                  aria-live="polite"
+                ></span>
+              </button>
+              <div
+                id="session-timer-editor"
+                class="viz-session-timer-editor"
+                hidden
+                aria-label="Edit session duration"
+              >
+                <div class="viz-session-timer-controls">
+                  <label class="viz-session-timer-field">
+                    <span class="viz-session-timer-unit" aria-hidden="true">m</span>
+                    <span class="visually-hidden">Minutes</span>
+                    <input
+                      id="session-timer-minutes"
+                      class="viz-session-timer-input"
+                      type="number"
+                      inputmode="numeric"
+                      min="0"
+                      max="180"
+                      value="5"
+                    />
+                  </label>
+                  <label class="viz-session-timer-field">
+                    <span class="viz-session-timer-unit" aria-hidden="true">s</span>
+                    <span class="visually-hidden">Seconds</span>
+                    <input
+                      id="session-timer-seconds"
+                      class="viz-session-timer-input"
+                      type="number"
+                      inputmode="numeric"
+                      min="0"
+                      max="59"
+                      value="0"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    id="btn-session-timer-reset"
+                    class="btn small"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section class="controls" aria-label="Pattern builder">
-          <div class="transport">
-            <button type="button" id="btn-play-pause" class="btn primary">
-              Play
-            </button>
-            <button type="button" id="btn-reset-pattern" class="btn">
-              Reset to box 4-4-4-4
-            </button>
-            <button
-              type="button"
-              id="btn-copy-link"
-              class="btn btn-copy-link"
-              aria-label="Copy breathing pattern URL"
+        <section
+          class="share-panel"
+          aria-labelledby="pattern-details-heading"
+        >
+          <h2 id="pattern-details-heading" class="share-panel-title">
+            <label
+              class="share-panel-heading-label"
+              for="share-description"
             >
-              Copy link
-            </button>
-          </div>
+              Pattern Details
+            </label>
+          </h2>
+          <textarea
+            id="share-description"
+            class="share-panel-textarea"
+            name="share-description"
+            rows="3"
+            maxlength="800"
+            aria-labelledby="pattern-details-heading"
+            spellcheck="true"
+            placeholder="Optional note for recipients…"
+          ></textarea>
+        </section>
+        </div>
 
-          <div class="segments-head">
-            <h2>Pattern</h2>
-            <button type="button" id="btn-add-segment" class="btn small">
-              Add segment
-            </button>
-          </div>
+        <section class="templates-panel" aria-labelledby="templates-heading">
+          <h2 id="templates-heading" class="templates-panel-title">
+            Templates
+          </h2>
+          <p class="templates-panel-lead">
+            Start from a preset, then customize in Pattern below.
+          </p>
+          <ul id="template-list" class="template-list"></ul>
+        </section>
 
-          <ul id="segment-list" class="segment-list"></ul>
+        <section class="playback-panel" aria-labelledby="playback-heading">
+          <h2 id="playback-heading" class="visually-hidden">Practice</h2>
+          <button
+            type="button"
+            id="btn-playback-unified"
+            class="btn primary playback-panel-trigger"
+          >
+            Start
+          </button>
+        </section>
+
+        <section class="pattern-panel" aria-label="Pattern builder">
+          <div class="pattern-panel-body">
+            <div class="transport">
+              <button type="button" id="btn-reset-pattern" class="btn">
+                Reset
+              </button>
+              <button
+                type="button"
+                id="btn-copy-link"
+                class="btn btn-copy-link"
+                aria-label="Copy breathing pattern URL"
+              >
+                Copy link
+              </button>
+            </div>
+
+            <div class="segments-head">
+              <h2>Pattern</h2>
+              <button type="button" id="btn-add-segment" class="btn small">
+                Add segment
+              </button>
+            </div>
+
+            <ul id="segment-list" class="segment-list"></ul>
+          </div>
         </section>
       </main>
     </div>

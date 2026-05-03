@@ -1,5 +1,5 @@
 /**
- * Breath4me: cycle starts at 12 o'clock; dot travels clockwise once per pattern.
+ * Breath with Daniel: cycle starts at 12 o'clock; dot travels clockwise once per pattern.
  * Coordinate system matches SVG arcs (fraction 0→1 clockwise from top).
  */
 (function () {
@@ -12,14 +12,254 @@
   const URL_PARAM = 'q';
   const URL_DEBOUNCE_MS = 200;
   const SEGMENT_LABEL_MAX_LEN = 40;
+  const SHARE_NOTE_MAX_LEN = 800;
+  const DEFAULT_PAGE_TITLE = 'Breath with Daniel';
+  const SESSION_TITLE_MAX_LEN = 80;
 
   const COPY_BTN_LABEL_DEFAULT = 'Copy link';
+  /** Max session timer goal duration (minutes + seconds capped to this wall clock). */
+  const SESSION_TIMER_MAX_MINUTES = 180;
 
   const DEFAULT_PATTERN = [
-    { kind: 'in', sec: 4, label: '' },
-    { kind: 'hold', sec: 4, label: '' },
-    { kind: 'out', sec: 4, label: '' },
-    { kind: 'hold', sec: 4, label: '' },
+    {
+      kind: 'in',
+      sec: 4,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'hold',
+      sec: 4,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'out',
+      sec: 4,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'hold',
+      sec: 4,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+  ];
+
+  function preset_seg(kind, sec) {
+    return {
+      kind,
+      sec,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    };
+  }
+
+  function box_breathing(sec) {
+    return [
+      preset_seg('in', sec),
+      preset_seg('hold', sec),
+      preset_seg('out', sec),
+      preset_seg('hold', sec),
+    ];
+  }
+
+  /** Classical 4-count box pattern with nose-guided inhale and exhale. */
+  const SEGMENTS_BOX_4444_AIRWAY = [
+    {
+      kind: 'in',
+      sec: 4,
+      label: '',
+      nasalCue: 'in',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'hold',
+      sec: 4,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'out',
+      sec: 4,
+      label: '',
+      nasalCue: 'out',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'hold',
+      sec: 4,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+  ];
+
+  const SEGMENTS_LOWER_PAIN_4_7_2 = [
+    {
+      kind: 'in',
+      sec: 4,
+      label: '',
+      nasalCue: 'in',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'in',
+    },
+    {
+      kind: 'out',
+      sec: 7,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'out',
+      chestCue: 'none',
+      stomachCue: 'out',
+    },
+    {
+      kind: 'hold',
+      sec: 2,
+      label: 'Pause',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+  ];
+
+  const SEGMENTS_POWER_BREATHS = [
+    {
+      kind: 'in',
+      sec: 2,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'in',
+      stomachCue: 'in',
+    },
+    {
+      kind: 'out',
+      sec: 2,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'out',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+  ];
+
+  /** Shared nose-in / mouth-out cues for classical 4-7-8 (Weil-style). */
+  const SEGMENTS_478_AIRWAY = [
+    {
+      kind: 'in',
+      sec: 4,
+      label: '',
+      nasalCue: 'in',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'hold',
+      sec: 7,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+    {
+      kind: 'out',
+      sec: 8,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'out',
+      chestCue: 'none',
+      stomachCue: 'none',
+    },
+  ];
+
+  const PATTERN_TEMPLATES = [
+    {
+      id: 'box4444',
+      label: 'Box breathing',
+      segments: SEGMENTS_BOX_4444_AIRWAY,
+      shareNote:
+        'Navy SEALs use box breathing for focus under stress. Nose inhale 4, hold 4, exhale 4, hold 4. Repeat 5–10 min; visualize tracing a box. Often cited: nervous regulation, stress/anxiety, focus, HRV—not medical advice.',
+    },
+    {
+      id: 'breath478',
+      label: '4-7-8 Breathing',
+      segments: SEGMENTS_478_AIRWAY,
+      shareNote:
+        'Popularized by Dr. Andrew Weil. Quiet nose inhale 4s, hold 7s, mouth exhale whoosh 8s. Repeat ~4 cycles; start slower if new. Benefits often cited: vagus/parasympathetic, HR/BP, anxiety easing, relaxation/sleep—not medical advice.',
+    },
+    {
+      id: 'lower-bp-5-8',
+      label: 'Lower blood pressure',
+      segments: [preset_seg('in', 5), preset_seg('out', 8)],
+    },
+    {
+      id: 'lower-pain-4-7-2',
+      label: 'Lower pain',
+      segments: SEGMENTS_LOWER_PAIN_4_7_2,
+      shareNote:
+        'Session idea: 5–10 min, diaphragmatic (belly) breathing. Combine with mindfulness: focus on breath or visualize discomfort easing on the exhale.',
+    },
+    {
+      id: 'awaken-5-2-3-2',
+      label: 'Awaken',
+      segments: [
+        preset_seg('in', 5),
+        preset_seg('hold', 2),
+        preset_seg('out', 3),
+        preset_seg('hold', 2),
+      ],
+    },
+    {
+      id: 'power-breaths',
+      label: 'Power breaths',
+      segments: SEGMENTS_POWER_BREATHS,
+      shareNote:
+        `Power breaths (~30–40 breath repetitions suggested): inhale belly then chest deeply (nose or mouth—balloon inhale); passive mouth exhale, no forcing. Steady rhythmic bursts, no long pauses.
+
+Warnings: This involves hyperventilation and breath holds, which can cause dizziness, fainting, or tingling. Always practice sitting/lying down in a safe environment.
+• Avoid if pregnant, epileptic, have high blood pressure, heart issues, or panic disorders—consult a doctor first.
+• Never combine with water or activities requiring full attention.
+• Stop if you feel unwell. Start slow and listen to your body. Not medical advice.`,
+    },
+    {
+      id: 'calm-anxiety-478',
+      label: 'Calm anxiety',
+      segments: SEGMENTS_478_AIRWAY,
+      shareNote:
+        'In-the-moment when anxiety spikes: 4-7-8 breath for acute calm. Nose inhale 4s, hold 7s, mouth exhale 8s. Repeat ~4 full laps; good for interrupting racing thoughts. Not medical advice.',
+    },
+    { id: 'box6666', label: 'Box 6-6-6-6', segments: box_breathing(6) },
+    { id: 'box8888', label: 'Box 8-8-8-8', segments: box_breathing(8) },
   ];
 
   const PHASE_LABELS = {
@@ -32,20 +272,48 @@
   const dotEl = document.getElementById('viz-dot');
   const phaseLabelEl = document.getElementById('phase-label');
   const phaseCaptionEl = document.getElementById('phase-segment-caption');
+  const phaseAnnounceEl = document.getElementById('phase-announce');
   const phaseCountdownEl = document.getElementById('phase-countdown');
+  const vizNasalCueEl = document.getElementById('viz-nasal-cue');
+  const vizNasalArrowEl = document.getElementById('viz-nasal-arrow');
+  const vizMouthCueEl = document.getElementById('viz-mouth-cue');
+  const vizMouthArrowEl = document.getElementById('viz-mouth-arrow');
+  const vizChestMeterEl = document.getElementById('viz-chest-meter');
+  const vizChestFillEl = document.getElementById('viz-chest-fill');
+  const vizStomachMeterEl = document.getElementById('viz-stomach-meter');
+  const vizStomachFillEl = document.getElementById('viz-stomach-fill');
   const cycleTotalEl = document.getElementById('cycle-total');
   const segmentListEl = document.getElementById('segment-list');
-  const btnPlayPause = document.getElementById('btn-play-pause');
+  const btnUnifiedPlayback = document.getElementById(
+    'btn-playback-unified',
+  );
   const btnReset = document.getElementById('btn-reset-pattern');
   const btnCopy = document.getElementById('btn-copy-link');
   const btnAdd = document.getElementById('btn-add-segment');
+  const templateListEl = document.getElementById('template-list');
+  const shareDescriptionEl = document.getElementById('share-description');
+  const sessionTitleEl = document.getElementById('session-title');
+  const sessionTimerMinutesEl = document.getElementById('session-timer-minutes');
+  const sessionTimerSecondsEl = document.getElementById('session-timer-seconds');
+  const sessionTimerDisplayEl = document.getElementById('session-timer-display');
+  const btnSessionTimerExpand = document.getElementById(
+    'btn-session-timer-expand',
+  );
+  const sessionTimerEditorEl = document.getElementById('session-timer-editor');
+  const btnSessionTimerResetBtn = document.getElementById(
+    'btn-session-timer-reset',
+  );
 
   const prefersReducedMotion = window.matchMedia(
     '(prefers-reduced-motion: reduce)',
   );
 
-  /** @type {{ kind: 'in'|'out'|'hold', sec: number, label: string }[]} */
+  /** @type {{ kind: 'in'|'out'|'hold', sec: number, label: string, nasalCue: 'none'|'in'|'out', mouthCue: 'none'|'in'|'out', chestCue: 'none'|'in'|'out', stomachCue: 'none'|'in'|'out' }[]} */
   let segments = [];
+  /** @type {string} sanitized share note; URL field `d` when non-empty */
+  let shareNote = '';
+  /** @type {string} optional custom title; URL field `t` when non-empty */
+  let sessionTitle = '';
   /** @type {boolean} */
   let playing = false;
   /** @type {number | null} */
@@ -59,10 +327,29 @@
   let copyResetTimer = null;
   let copyBusy = false;
   let rafId = 0;
+  /** @type {number} */
+  let sessionTimerRafId = 0;
+  /** @type {'idle'|'cd'|'cd_paused'|'ov'|'ov_paused'} */
+  let sessionTimerPhase = 'idle';
+  /** @type {number | null} */
+  let sessionTimerCdDeadline = null;
+  /** @type {number | null} */
+  let sessionTimerCdRemainPaused = null;
+  /** @type {number | null} */
+  let sessionTimerOvAnchor = null;
+  /** @type {number | null} */
+  let sessionTimerOvElapsedPaused = null;
+  /** Announce when segment index / nasal / mouth / chest / stomach cue changes. */
+  let lastPhaseAnnounceKey = '';
 
   function clampSec(n) {
     if (!Number.isFinite(n)) return MIN_SEC;
     return Math.max(MIN_SEC, Math.round(n * 10) / 10);
+  }
+
+  function clamp01(x) {
+    if (!Number.isFinite(x)) return 0;
+    return Math.max(0, Math.min(1, x));
   }
 
   function sanitize_segment_label(raw) {
@@ -70,6 +357,412 @@
     let t = raw.trim().replace(/\s+/g, ' ');
     t = t.replace(/[\u0000-\u001F\u007F]/g, '');
     return t.slice(0, SEGMENT_LABEL_MAX_LEN);
+  }
+
+  function sanitize_share_note(raw) {
+    if (raw == null || typeof raw !== 'string') return '';
+    let t = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    t = t.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '');
+    return t.trim().slice(0, SHARE_NOTE_MAX_LEN);
+  }
+
+  function sanitize_session_title(raw) {
+    if (raw == null || typeof raw !== 'string') return '';
+    let t = raw.trim().replace(/\s+/g, ' ');
+    t = t.replace(/[\u0000-\u001F\u007F]/g, '');
+    return t.slice(0, SESSION_TITLE_MAX_LEN);
+  }
+
+  function effective_title() {
+    return sessionTitle || DEFAULT_PAGE_TITLE;
+  }
+
+  function sync_title_ui() {
+    document.title = effective_title();
+    if (sessionTitleEl) sessionTitleEl.value = sessionTitle;
+  }
+
+  function now_perf_ms() {
+    return typeof performance !== 'undefined'
+      ? performance.now()
+      : Date.now();
+  }
+
+  /** @returns {number} capped goal length in milliseconds */
+  function session_target_ms_from_inputs() {
+    const mnRaw = Number(sessionTimerMinutesEl?.value ?? 0);
+    const scRaw = Number(sessionTimerSecondsEl?.value ?? 0);
+    const mn = Math.floor(
+      Math.min(Math.max(0, Number.isFinite(mnRaw) ? mnRaw : 0), SESSION_TIMER_MAX_MINUTES),
+    );
+    let sc = Math.floor(
+      Math.min(Math.max(0, Number.isFinite(scRaw) ? scRaw : 0), 59),
+    );
+    let totalSec = mn * 60 + sc;
+    const capSec = SESSION_TIMER_MAX_MINUTES * 60;
+    if (totalSec > capSec) totalSec = capSec;
+    return totalSec * 1000;
+  }
+
+  /** @param {number} totalMs */
+  function format_session_mmss(totalMs) {
+    const sec = Math.floor(Math.max(0, totalMs) / 1000);
+    const mm = Math.floor(sec / 60);
+    const ss = sec % 60;
+    return `${mm}:${String(ss).padStart(2, '0')}`;
+  }
+
+  function pattern_valid_for_playback() {
+    return segments.length > 0 && totalMs(segments) > 0;
+  }
+
+  function playback_unified_active() {
+    return (
+      playing ||
+      sessionTimerPhase === 'cd' ||
+      sessionTimerPhase === 'ov'
+    );
+  }
+
+  function playback_unified_sync_label() {
+    if (!btnUnifiedPlayback) return;
+    btnUnifiedPlayback.textContent = playback_unified_active()
+      ? 'Pause'
+      : 'Start';
+  }
+
+  function playback_unified_sync_disabled() {
+    if (!btnUnifiedPlayback) return;
+    if (playback_unified_active()) {
+      btnUnifiedPlayback.disabled = false;
+      return;
+    }
+    const patternValid = pattern_valid_for_playback();
+    const paused =
+      sessionTimerPhase === 'cd_paused' ||
+      sessionTimerPhase === 'ov_paused';
+    const goalOk =
+      sessionTimerPhase === 'idle' &&
+      session_target_ms_from_inputs() > 0;
+    btnUnifiedPlayback.disabled =
+      !patternValid && !goalOk && !paused;
+  }
+
+  function cancel_session_timer_raf() {
+    if (sessionTimerRafId) cancelAnimationFrame(sessionTimerRafId);
+    sessionTimerRafId = 0;
+  }
+
+  /** @param {number} now */
+  function session_timer_display_text(now) {
+    switch (sessionTimerPhase) {
+      case 'idle': {
+        const g = session_target_ms_from_inputs();
+        return g <= 0 ? 'Set a goal, then Start' : `Session: ${format_session_mmss(g)}`;
+      }
+      case 'cd':
+        return sessionTimerCdDeadline != null
+          ? `${format_session_mmss(Math.max(0, sessionTimerCdDeadline - now))} left`
+          : '';
+      case 'cd_paused':
+        return sessionTimerCdRemainPaused != null
+          ? `${format_session_mmss(sessionTimerCdRemainPaused)} left (paused)`
+          : '';
+      case 'ov':
+        return sessionTimerOvAnchor != null
+          ? `+${format_session_mmss(Math.max(0, now - sessionTimerOvAnchor))}`
+          : '';
+      case 'ov_paused':
+        return sessionTimerOvElapsedPaused != null
+          ? `+${format_session_mmss(sessionTimerOvElapsedPaused)} (paused)`
+          : '';
+      default:
+        return '';
+    }
+  }
+
+  /** @param {number} [nowRaw] */
+  function refresh_session_timer_ui(nowRaw) {
+    const now =
+      typeof nowRaw === 'number' ? nowRaw : now_perf_ms();
+    if (!sessionTimerDisplayEl) return;
+
+    if (sessionTimerPhase === 'cd' && sessionTimerCdDeadline != null) {
+      const rem = sessionTimerCdDeadline - now;
+      if (rem <= 0) {
+        sessionTimerPhase = 'ov';
+        sessionTimerOvAnchor = now;
+        sessionTimerCdDeadline = null;
+        sessionTimerDisplayEl.textContent = `+${format_session_mmss(0)}`;
+        refresh_session_timer_button_state();
+        return;
+      }
+    }
+
+    sessionTimerDisplayEl.textContent = session_timer_display_text(now);
+  }
+
+  function refresh_session_timer_button_state() {
+    playback_unified_sync_label();
+    playback_unified_sync_disabled();
+  }
+
+  function set_session_timer_inputs_disabled(disabled) {
+    if (sessionTimerMinutesEl) sessionTimerMinutesEl.disabled = disabled;
+    if (sessionTimerSecondsEl) sessionTimerSecondsEl.disabled = disabled;
+  }
+
+  /** @param {DOMHighResTimeStamp} ts */
+  function session_timer_loop(ts) {
+    const now = typeof performance !== 'undefined' ? performance.now() : ts;
+    refresh_session_timer_ui(now);
+    if (sessionTimerPhase === 'cd' || sessionTimerPhase === 'ov')
+      sessionTimerRafId = requestAnimationFrame(session_timer_loop);
+    else sessionTimerRafId = 0;
+  }
+
+  function start_session_timer_raf() {
+    cancel_session_timer_raf();
+    sessionTimerRafId = requestAnimationFrame(session_timer_loop);
+  }
+
+  function session_timer_pause_if_running() {
+    const now = now_perf_ms();
+    if (
+      sessionTimerPhase === 'cd' &&
+      sessionTimerCdDeadline != null
+    ) {
+      sessionTimerCdRemainPaused = Math.max(0, sessionTimerCdDeadline - now);
+      sessionTimerCdDeadline = null;
+      sessionTimerPhase = 'cd_paused';
+      cancel_session_timer_raf();
+    } else if (
+      sessionTimerPhase === 'ov' &&
+      sessionTimerOvAnchor != null
+    ) {
+      sessionTimerOvElapsedPaused = Math.max(
+        0,
+        now - sessionTimerOvAnchor,
+      );
+      sessionTimerOvAnchor = null;
+      sessionTimerPhase = 'ov_paused';
+      cancel_session_timer_raf();
+    }
+    refresh_session_timer_button_state();
+    refresh_session_timer_ui(now);
+  }
+
+  /** Starts or resumes countdown/overrun RAF when Phase allows. */
+  function session_timer_attempt_run_or_resume() {
+    const now = now_perf_ms();
+    if (sessionTimerPhase === 'idle') {
+      const goalMs = session_target_ms_from_inputs();
+      if (goalMs <= 0) return;
+      sessionTimerCdDeadline = now + goalMs;
+      sessionTimerPhase = 'cd';
+    } else if (
+      sessionTimerPhase === 'cd_paused' &&
+      sessionTimerCdRemainPaused != null
+    ) {
+      sessionTimerCdDeadline = now + sessionTimerCdRemainPaused;
+      sessionTimerCdRemainPaused = null;
+      sessionTimerPhase = 'cd';
+    } else if (
+      sessionTimerPhase === 'ov_paused' &&
+      sessionTimerOvElapsedPaused != null
+    ) {
+      sessionTimerOvAnchor = now - sessionTimerOvElapsedPaused;
+      sessionTimerOvElapsedPaused = null;
+      sessionTimerPhase = 'ov';
+    } else return;
+
+    set_session_timer_inputs_disabled(true);
+    refresh_session_timer_button_state();
+    refresh_session_timer_ui(now);
+    start_session_timer_raf();
+  }
+
+  function unified_playback_click() {
+    if (playback_unified_active()) {
+      set_play_state(false);
+      session_timer_pause_if_running();
+    } else {
+      if (pattern_valid_for_playback()) set_play_state(true);
+      session_timer_attempt_run_or_resume();
+    }
+    sync_visual_all();
+    start_loop();
+  }
+
+  function session_timer_reset_full() {
+    cancel_session_timer_raf();
+    sessionTimerPhase = 'idle';
+    sessionTimerCdDeadline = null;
+    sessionTimerCdRemainPaused = null;
+    sessionTimerOvAnchor = null;
+    sessionTimerOvElapsedPaused = null;
+    set_session_timer_inputs_disabled(false);
+    refresh_session_timer_button_state();
+    refresh_session_timer_ui(now_perf_ms());
+  }
+
+  /** Shared encoding for nasal and mouth airway cues (1=in, 2=out). */
+  /** @param {unknown} raw @returns {'none'|'in'|'out'} */
+  function normalize_airway_cue(raw) {
+    if (raw === 'in' || raw === 'out') return raw;
+    return 'none';
+  }
+
+  /** @param {unknown} num @returns {'none'|'in'|'out'} */
+  function airway_num_to_cue(num) {
+    const n = Number(num);
+    if (n === 1) return 'in';
+    if (n === 2) return 'out';
+    return 'none';
+  }
+
+  /** @param {'none'|'in'|'out'} cue @returns {0|1|2} */
+  function airway_cue_to_num(cue) {
+    if (cue === 'in') return 1;
+    if (cue === 'out') return 2;
+    return 0;
+  }
+
+  /** @returns {(string | number)[]} row after kind/sec */
+  function serialize_segment_tail(seg) {
+    const L = sanitize_segment_label(seg.label);
+    const n = airway_cue_to_num(normalize_airway_cue(seg.nasalCue));
+    const m = airway_cue_to_num(normalize_airway_cue(seg.mouthCue));
+    const hasLabel = !!L;
+    const hasN = n !== 0;
+    const hasM = m !== 0;
+    /** @type {(string | number)[]} */
+    const tail = [];
+    if (!hasLabel && !hasN && !hasM) return tail;
+    if (hasLabel) {
+      tail.push(L);
+      if (!hasN && !hasM) return tail;
+      if (hasN && hasM) {
+        tail.push(n);
+        tail.push(m);
+        return tail;
+      }
+      if (hasN) {
+        tail.push(n);
+        return tail;
+      }
+      tail.push(0);
+      tail.push(m);
+      return tail;
+    }
+    if (hasN && hasM) {
+      tail.push(n);
+      tail.push(m);
+      return tail;
+    }
+    if (hasN) {
+      tail.push(n);
+      return tail;
+    }
+    tail.push(0);
+    tail.push(m);
+    return tail;
+  }
+
+  function parse_segment_row(row) {
+    const kind = row[0];
+    const sec = Number(row[1]);
+    const tail = row.slice(2);
+    /** @type {string} */
+    let label = '';
+    /** @type {'none'|'in'|'out'} */
+    let nasalCue = 'none';
+    /** @type {'none'|'in'|'out'} */
+    let mouthCue = 'none';
+    const len = tail.length;
+    if (len === 0) {
+      // [k,s]
+    } else if (len === 1) {
+      if (typeof tail[0] === 'number')
+        nasalCue = airway_num_to_cue(tail[0]);
+      else if (typeof tail[0] === 'string')
+        label = sanitize_segment_label(tail[0]);
+    } else if (len === 2) {
+      if (typeof tail[0] === 'string') {
+        label = sanitize_segment_label(tail[0]);
+        if (typeof tail[1] === 'number')
+          nasalCue = airway_num_to_cue(tail[1]);
+      } else if (typeof tail[0] === 'number' && typeof tail[1] === 'number') {
+        nasalCue = airway_num_to_cue(tail[0]);
+        mouthCue = airway_num_to_cue(tail[1]);
+      }
+    } else {
+      if (typeof tail[0] === 'string') {
+        label = sanitize_segment_label(tail[0]);
+        if (typeof tail[1] === 'number')
+          nasalCue = airway_num_to_cue(tail[1]);
+        if (typeof tail[2] === 'number')
+          mouthCue = airway_num_to_cue(tail[2]);
+      }
+    }
+    return {
+      kind,
+      sec: clampSec(sec),
+      label,
+      nasalCue: normalize_airway_cue(nasalCue),
+      mouthCue: normalize_airway_cue(mouthCue),
+      chestCue: 'none',
+      stomachCue: 'none',
+    };
+  }
+
+  function pattern_requires_url_v2(pattern) {
+    return pattern.some(
+      (seg) =>
+        normalize_airway_cue(seg.chestCue) !== 'none' ||
+        normalize_airway_cue(seg.stomachCue) !== 'none',
+    );
+  }
+
+  /** Compact URL `v:2` row: `{ k, s, l?, n, m, c, st }`. */
+  function serialize_segment_v2(seg) {
+    const L = sanitize_segment_label(seg.label);
+    /** @type {Record<string, unknown>} */
+    const o = {
+      k: seg.kind,
+      s: seg.sec,
+      n: airway_cue_to_num(normalize_airway_cue(seg.nasalCue)),
+      m: airway_cue_to_num(normalize_airway_cue(seg.mouthCue)),
+      c: airway_cue_to_num(normalize_airway_cue(seg.chestCue)),
+      st: airway_cue_to_num(normalize_airway_cue(seg.stomachCue)),
+    };
+    if (L) o.l = L;
+    return o;
+  }
+
+  /** @param {unknown} item @returns {ReturnType<typeof parse_segment_row> | null} */
+  function parse_segment_v2_row(item) {
+    if (!item || typeof item !== 'object') return null;
+    const raw = /** @type {Record<string, unknown>} */ (item);
+    const kind = raw.k;
+    if (kind !== 'in' && kind !== 'out' && kind !== 'hold') return null;
+    const sec = Number(raw.s);
+    if (!Number.isFinite(sec)) return null;
+    const label =
+      typeof raw.l === 'string' ? sanitize_segment_label(raw.l) : '';
+    const nasalCue = airway_num_to_cue(raw.n);
+    const mouthCue = airway_num_to_cue(raw.m);
+    const chestCue = airway_num_to_cue(raw.c);
+    const stomachCue = airway_num_to_cue(raw.st);
+    return {
+      kind,
+      sec: clampSec(sec),
+      label,
+      nasalCue: normalize_airway_cue(nasalCue),
+      mouthCue: normalize_airway_cue(mouthCue),
+      chestCue: normalize_airway_cue(chestCue),
+      stomachCue: normalize_airway_cue(stomachCue),
+    };
   }
 
   function totalMs(pattern) {
@@ -160,6 +853,23 @@
     cycleTotalEl.textContent = `${format_sec(T)}s`;
 
     if (T <= 0) {
+      lastPhaseAnnounceKey = '';
+      if (phaseAnnounceEl) phaseAnnounceEl.textContent = '';
+      if (vizNasalCueEl) {
+        vizNasalCueEl.classList.add('viz-nasal-cue--off');
+        if (vizNasalArrowEl) vizNasalArrowEl.textContent = '';
+      }
+      if (vizMouthCueEl) {
+        vizMouthCueEl.classList.add('viz-mouth-cue--off');
+        if (vizMouthArrowEl) vizMouthArrowEl.textContent = '';
+      }
+      if (vizChestMeterEl)
+        vizChestMeterEl.classList.add('viz-chest-meter--off');
+      if (vizChestFillEl) vizChestFillEl.style.transform = 'scaleY(0)';
+      if (vizStomachMeterEl)
+        vizStomachMeterEl.classList.add('viz-stomach-meter--off');
+      if (vizStomachFillEl)
+        vizStomachFillEl.style.transform = 'scaleY(0)';
       phaseCaptionEl.textContent = '';
       phaseLabelEl.textContent = 'Add segments to begin';
       phaseCountdownEl.textContent = '';
@@ -173,6 +883,76 @@
     const label = PHASE_LABELS[info.seg.kind];
     if (forceLabel !== false) phaseLabelEl.textContent = label;
     phaseCountdownEl.textContent = `${format_sec(info.remainMs)}s remaining`;
+
+    const nCue = normalize_airway_cue(info.seg.nasalCue);
+    if (vizNasalCueEl && vizNasalArrowEl) {
+      if (nCue === 'none') {
+        vizNasalCueEl.classList.add('viz-nasal-cue--off');
+        vizNasalArrowEl.textContent = '';
+      } else {
+        vizNasalCueEl.classList.remove('viz-nasal-cue--off');
+        vizNasalArrowEl.textContent = nCue === 'in' ? '\u2191' : '\u2193';
+      }
+    }
+
+    const mCue = normalize_airway_cue(info.seg.mouthCue);
+    if (vizMouthCueEl && vizMouthArrowEl) {
+      if (mCue === 'none') {
+        vizMouthCueEl.classList.add('viz-mouth-cue--off');
+        vizMouthArrowEl.textContent = '';
+      } else {
+        vizMouthCueEl.classList.remove('viz-mouth-cue--off');
+        vizMouthArrowEl.textContent = mCue === 'in' ? '\u2191' : '\u2193';
+      }
+    }
+
+    const chestCue = normalize_airway_cue(info.seg.chestCue);
+    const stomachCue = normalize_airway_cue(info.seg.stomachCue);
+    const durMs = info.seg.sec * 1000;
+    /** Same progress curve for inhale/out/hold meters: animate over segment duration. */
+    const p = durMs > 0 ? clamp01(info.elapsedInSeg / durMs) : 0;
+
+    function set_body_meter(offClass, meterEl, fillEl, cue) {
+      if (!meterEl || !fillEl) return;
+      if (cue === 'none') {
+        meterEl.classList.add(offClass);
+        fillEl.style.transform = 'scaleY(0)';
+        return;
+      }
+      meterEl.classList.remove(offClass);
+      const fill = cue === 'in' ? p : 1 - p;
+      fillEl.style.transform = `scaleY(${fill})`;
+    }
+
+    set_body_meter(
+      'viz-chest-meter--off',
+      vizChestMeterEl,
+      vizChestFillEl,
+      chestCue,
+    );
+    set_body_meter(
+      'viz-stomach-meter--off',
+      vizStomachMeterEl,
+      vizStomachFillEl,
+      stomachCue,
+    );
+
+    if (phaseAnnounceEl) {
+      const annKey = `${info.index}|${nCue}|${mCue}|${chestCue}|${stomachCue}`;
+      if (annKey !== lastPhaseAnnounceKey) {
+        lastPhaseAnnounceKey = annKey;
+        let msg = label;
+        if (nCue === 'in') msg += '. Nose inhale.';
+        else if (nCue === 'out') msg += '. Nose exhale.';
+        if (mCue === 'in') msg += ' Mouth inhale.';
+        else if (mCue === 'out') msg += ' Mouth exhale.';
+        if (chestCue === 'in') msg += ' Chest inhale.';
+        else if (chestCue === 'out') msg += ' Chest exhale.';
+        if (stomachCue === 'in') msg += ' Stomach inhale.';
+        else if (stomachCue === 'out') msg += ' Stomach exhale.';
+        phaseAnnounceEl.textContent = msg;
+      }
+    }
   }
 
   function current_elapsed_ms(now) {
@@ -229,43 +1009,79 @@
       }
       playStartPerf = null;
       playing = false;
-      btnPlayPause.textContent = 'Play';
     } else if (T > 0 && !playing) {
       playStartPerf = now;
       playing = true;
-      btnPlayPause.textContent = 'Pause';
     }
+    refresh_session_timer_button_state();
   }
 
   function serialize_url_payload(pattern) {
-    const s = pattern.map(({ kind, sec, label }) => {
-      const L = sanitize_segment_label(label);
-      const row = [kind, sec];
-      if (L) row.push(L);
-      return row;
-    });
-    return JSON.stringify({ v: 1, s });
+    const d = sanitize_share_note(shareNote);
+    const tTitle = sanitize_session_title(sessionTitle);
+
+    let obj;
+    if (pattern_requires_url_v2(pattern)) {
+      const s = pattern.map((seg) => serialize_segment_v2(seg));
+      obj = { v: 2, s };
+    } else {
+      const s = pattern.map((seg) => {
+        const row = [seg.kind, seg.sec];
+        const tail = serialize_segment_tail(seg);
+        return row.concat(tail);
+      });
+      obj = { v: 1, s };
+    }
+    if (d) obj.d = d;
+    if (tTitle) obj.t = tTitle;
+    return JSON.stringify(obj);
   }
 
+  /**
+   * @param {string | null} raw
+   * @returns {{ segments: typeof segments, shareNote: string, sessionTitle: string } | null}
+   */
   function try_parse_q(raw) {
     if (!raw) return null;
     try {
       const obj = JSON.parse(raw);
-      if (obj == null || obj.v !== 1 || !Array.isArray(obj.s)) return null;
-      const out = [];
-      for (const row of obj.s) {
-        if (!Array.isArray(row) || row.length < 2) continue;
-        const kind = row[0];
-        const sec = Number(row[1]);
-        if (kind !== 'in' && kind !== 'out' && kind !== 'hold') continue;
-        if (!Number.isFinite(sec)) continue;
-        let label = '';
-        if (row.length > 2 && typeof row[2] === 'string')
-          label = sanitize_segment_label(row[2]);
-        out.push({ kind, sec: clampSec(sec), label });
+      if (obj == null || !Array.isArray(obj.s)) return null;
+      const parsedNote =
+        typeof obj.d === 'string' ? sanitize_share_note(obj.d) : '';
+      const parsedTitle =
+        typeof obj.t === 'string' ? sanitize_session_title(obj.t) : '';
+
+      if (obj.v === 1) {
+        const out = [];
+        for (const row of obj.s) {
+          if (!Array.isArray(row) || row.length < 2) continue;
+          const kind = row[0];
+          if (kind !== 'in' && kind !== 'out' && kind !== 'hold') continue;
+          const sec = Number(row[1]);
+          if (!Number.isFinite(sec)) continue;
+          out.push(parse_segment_row(row));
+        }
+        if (out.length === 0) return null;
+        return {
+          segments: out,
+          shareNote: parsedNote,
+          sessionTitle: parsedTitle,
+        };
       }
-      if (out.length === 0) return null;
-      return out;
+      if (obj.v === 2) {
+        const out = [];
+        for (const row of obj.s) {
+          const seg = parse_segment_v2_row(row);
+          if (seg) out.push(seg);
+        }
+        if (out.length === 0) return null;
+        return {
+          segments: out,
+          shareNote: parsedNote,
+          sessionTitle: parsedTitle,
+        };
+      }
+      return null;
     } catch {
       return null;
     }
@@ -290,8 +1106,6 @@
   function refresh_transport_disabled() {
     const invalidPattern = segments.length === 0 || totalMs(segments) <= 0;
 
-    btnPlayPause.disabled = invalidPattern;
-
     if (invalidPattern && copyBusy) {
       if (copyResetTimer != null) {
         clearTimeout(copyResetTimer);
@@ -301,6 +1115,7 @@
       btnCopy.removeAttribute('aria-busy');
       btnCopy.textContent = COPY_BTN_LABEL_DEFAULT;
       btnCopy.disabled = true;
+      playback_unified_sync_disabled();
       return;
     }
 
@@ -308,6 +1123,8 @@
       copyBusy && btnCopy.textContent === 'Copying…';
 
     btnCopy.disabled = invalidPattern || duringClipboardWrite;
+
+    playback_unified_sync_disabled();
   }
 
   async function copy_link() {
@@ -362,6 +1179,10 @@
     for (let i = 0; i < pattern.length; i++) {
       pattern[i].sec = clampSec(pattern[i].sec);
       pattern[i].label = sanitize_segment_label(pattern[i].label);
+      pattern[i].nasalCue = normalize_airway_cue(pattern[i].nasalCue);
+      pattern[i].mouthCue = normalize_airway_cue(pattern[i].mouthCue);
+      pattern[i].chestCue = normalize_airway_cue(pattern[i].chestCue);
+      pattern[i].stomachCue = normalize_airway_cue(pattern[i].stomachCue);
     }
     return pattern;
   }
@@ -380,6 +1201,56 @@
       typeof performance !== 'undefined' ? performance.now() : Date.now();
     tick(now);
     start_loop();
+  }
+
+  /**
+   * @param {HTMLElement} parent
+   * @param {string} fieldsetClass segment-nasal-fieldset …
+   * @param {string} legendText
+   * @param {string} radiosRowClass segment-nasal-radios …
+   * @param {string} radioGroupName
+   * @param {unknown} cueValue
+   * @param {{ v: string, t: string }[]} optionList
+   * @param {(value: string) => void} applyCue
+   */
+  function append_segment_cue_fieldset(
+    parent,
+    fieldsetClass,
+    legendText,
+    radiosRowClass,
+    radioGroupName,
+    cueValue,
+    optionList,
+    applyCue,
+  ) {
+    const fsEl = document.createElement('fieldset');
+    fsEl.className = fieldsetClass;
+    const leg = document.createElement('legend');
+    leg.textContent = legendText;
+    fsEl.appendChild(leg);
+
+    const row = document.createElement('div');
+    row.className = radiosRowClass;
+    const cv = normalize_airway_cue(cueValue);
+    for (const opt of optionList) {
+      const lab = document.createElement('label');
+      const rad = document.createElement('input');
+      rad.type = 'radio';
+      rad.name = radioGroupName;
+      rad.value = opt.v;
+      if (cv === opt.v) rad.checked = true;
+      rad.addEventListener('change', () => {
+        if (rad.checked) {
+          applyCue(opt.v);
+          on_pattern_edited(true);
+        }
+      });
+      lab.appendChild(rad);
+      lab.appendChild(document.createTextNode(opt.t));
+      row.appendChild(lab);
+    }
+    fsEl.appendChild(row);
+    parent.appendChild(fsEl);
   }
 
   function render_segment_list() {
@@ -450,7 +1321,106 @@
 
       fields.appendChild(labKind);
       fields.appendChild(labDur);
-      fields.appendChild(labLbl);
+
+      const notesCuesWrap = document.createElement('div');
+      notesCuesWrap.className = 'segment-notes-cues';
+      notesCuesWrap.appendChild(labLbl);
+
+      const cuesDetails = document.createElement('details');
+      cuesDetails.className = 'segment-cues-shell';
+      const cuesSummary = document.createElement('summary');
+      cuesSummary.className = 'segment-cues-summary';
+      cuesSummary.id = `segment-cues-summary-${idx}`;
+      cuesSummary.textContent = 'Cues';
+
+      const cuesInner = document.createElement('div');
+      cuesInner.className = 'segment-cues-inner';
+
+      append_segment_cue_fieldset(
+        cuesInner,
+        'segment-nasal-fieldset',
+        'Nasal cue',
+        'segment-nasal-radios',
+        `nasal-seg-${idx}`,
+        seg.nasalCue,
+        [
+          { v: 'in', t: 'Up (inhale)' },
+          { v: 'out', t: 'Down (exhale)' },
+          { v: 'none', t: 'None' },
+        ],
+        (v) => {
+          seg.nasalCue =
+            v === 'in' ? 'in' : v === 'out' ? 'out' : 'none';
+        },
+      );
+      append_segment_cue_fieldset(
+        cuesInner,
+        'segment-mouth-fieldset',
+        'Mouth cue',
+        'segment-mouth-radios',
+        `mouth-seg-${idx}`,
+        seg.mouthCue,
+        [
+          { v: 'in', t: 'Up (inhale)' },
+          { v: 'out', t: 'Down (exhale)' },
+          { v: 'none', t: 'None' },
+        ],
+        (v) => {
+          seg.mouthCue =
+            v === 'in' ? 'in' : v === 'out' ? 'out' : 'none';
+        },
+      );
+      append_segment_cue_fieldset(
+        cuesInner,
+        'segment-chest-fieldset',
+        'Chest cue',
+        'segment-chest-radios',
+        `chest-seg-${idx}`,
+        seg.chestCue,
+        [
+          {
+            v: 'in',
+            t: 'Fill / Inhale',
+          },
+          {
+            v: 'out',
+            t: 'Drain / Exhale',
+          },
+          { v: 'none', t: 'None' },
+        ],
+        (v) => {
+          seg.chestCue =
+            v === 'in' ? 'in' : v === 'out' ? 'out' : 'none';
+        },
+      );
+      append_segment_cue_fieldset(
+        cuesInner,
+        'segment-stomach-fieldset',
+        'Stomach cue',
+        'segment-stomach-radios',
+        `stomach-seg-${idx}`,
+        seg.stomachCue,
+        [
+          {
+            v: 'in',
+            t: 'Fill / Inhale',
+          },
+          {
+            v: 'out',
+            t: 'Drain / Exhale',
+          },
+          { v: 'none', t: 'None' },
+        ],
+        (v) => {
+          seg.stomachCue =
+            v === 'in' ? 'in' : v === 'out' ? 'out' : 'none';
+        },
+      );
+
+      cuesDetails.appendChild(cuesSummary);
+      cuesDetails.appendChild(cuesInner);
+      notesCuesWrap.appendChild(cuesDetails);
+      fields.appendChild(notesCuesWrap);
 
       const moves = document.createElement('div');
       moves.className = 'segment-row-moves';
@@ -459,7 +1429,9 @@
       up.type = 'button';
       up.className = 'icon-btn';
       up.textContent = '↑';
-      up.disabled = idx === 0;
+      const canMoveUp = idx > 0;
+      up.disabled = !canMoveUp;
+      up.style.display = canMoveUp ? '' : 'none';
       up.setAttribute(
         'aria-label',
         `Move segment ${idx + 1} up`,
@@ -475,7 +1447,9 @@
       dn.type = 'button';
       dn.className = 'icon-btn';
       dn.textContent = '↓';
-      dn.disabled = idx === segments.length - 1;
+      const canMoveDown = idx < segments.length - 1;
+      dn.disabled = !canMoveDown;
+      dn.style.display = canMoveDown ? '' : 'none';
       dn.setAttribute(
         'aria-label',
         `Move segment ${idx + 1} down`,
@@ -498,8 +1472,12 @@
         on_pattern_edited(true);
       });
 
-      moves.appendChild(up);
-      moves.appendChild(dn);
+      const reorderCol = document.createElement('div');
+      reorderCol.className = 'segment-row-reorder';
+      reorderCol.appendChild(up);
+      reorderCol.appendChild(dn);
+
+      moves.appendChild(reorderCol);
       moves.appendChild(rm);
 
       li.appendChild(fields);
@@ -523,54 +1501,190 @@
     if (!listOnly) render_segment_list();
   }
 
-  function apply_default_pattern(reset_playback) {
-    segments = structuredClone(DEFAULT_PATTERN);
+  function apply_preset(patternSource, resetPlayback) {
+    lastPhaseAnnounceKey = '';
+    segments = structuredClone(patternSource);
     normalize_pattern_in_place(segments);
     phaseOffsetMs = 0;
     playStartPerf = null;
-    if (reset_playback !== false) {
+    if (resetPlayback !== false) {
       playing = false;
-      btnPlayPause.textContent = 'Play';
+      refresh_session_timer_button_state();
     }
     render_segment_list();
     sync_visual_all();
     schedule_url_replace();
   }
 
+  function apply_default_pattern(resetPlayback) {
+    apply_preset(DEFAULT_PATTERN, resetPlayback);
+  }
+
+  function render_template_list() {
+    if (!templateListEl) return;
+    templateListEl.innerHTML = '';
+    for (const t of PATTERN_TEMPLATES) {
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-template';
+      btn.textContent = t.label;
+      btn.setAttribute('aria-label', `Load pattern: ${t.label}`);
+      btn.addEventListener('click', () => {
+        apply_preset(t.segments);
+        const raw =
+          typeof t.shareNote === 'string' ? t.shareNote.trim() : '';
+        if (raw !== '') {
+          shareNote = sanitize_share_note(raw);
+          if (shareDescriptionEl) shareDescriptionEl.value = shareNote;
+        } else {
+          shareNote = '';
+          if (shareDescriptionEl) shareDescriptionEl.value = '';
+        }
+        schedule_url_replace();
+      });
+      li.appendChild(btn);
+      templateListEl.appendChild(li);
+    }
+  }
+
   function init_segments_from_location() {
+    lastPhaseAnnounceKey = '';
     const u = new URL(window.location.href);
     const parsed = try_parse_q(u.searchParams.get(URL_PARAM));
-    segments =
-      parsed && parsed.length > 0
-        ? parsed
-        : structuredClone(DEFAULT_PATTERN);
+    if (parsed && parsed.segments.length > 0) {
+      segments = parsed.segments;
+      shareNote = parsed.shareNote;
+      sessionTitle = parsed.sessionTitle;
+    } else {
+      segments = structuredClone(DEFAULT_PATTERN);
+      shareNote = '';
+      sessionTitle = '';
+    }
     normalize_pattern_in_place(segments);
     phaseOffsetMs = 0;
     playStartPerf = null;
     playing = false;
-    btnPlayPause.textContent = 'Play';
+    refresh_session_timer_button_state();
+    if (shareDescriptionEl) shareDescriptionEl.value = shareNote;
+    sync_title_ui();
+  }
+
+  function on_session_title_edited() {
+    if (!sessionTitleEl) return;
+    const next = sanitize_session_title(sessionTitleEl.value);
+    sessionTitle = next;
+    if (sessionTitleEl.value !== next) sessionTitleEl.value = next;
+    sync_title_ui();
+    schedule_url_replace();
+  }
+
+  function on_share_note_edited() {
+    if (!shareDescriptionEl) return;
+    const next = sanitize_share_note(shareDescriptionEl.value);
+    shareNote = next;
+    if (shareDescriptionEl.value !== next) shareDescriptionEl.value = next;
+    schedule_url_replace();
   }
 
   init_segments_from_location();
 
   prefersReducedMotion.addEventListener('change', () => sync_visual_all());
 
-  btnPlayPause.addEventListener('click', () => {
-    if (segments.length === 0 || totalMs(segments) <= 0) return;
-    set_play_state(!playing);
-    sync_visual_all();
-  });
+  if (btnUnifiedPlayback) {
+    btnUnifiedPlayback.addEventListener('click', unified_playback_click);
+  }
 
   btnReset.addEventListener('click', () => apply_default_pattern());
 
   btnAdd.addEventListener('click', () => {
-    segments.push({ kind: 'in', sec: 4, label: '' });
+    segments.push({
+      kind: 'in',
+      sec: 4,
+      label: '',
+      nasalCue: 'none',
+      mouthCue: 'none',
+      chestCue: 'none',
+      stomachCue: 'none',
+    });
     render_segment_list();
     on_pattern_edited(true);
   });
 
   btnCopy.addEventListener('click', () => void copy_link());
 
+  if (shareDescriptionEl) {
+    shareDescriptionEl.addEventListener('input', () => on_share_note_edited());
+    shareDescriptionEl.addEventListener('change', () => on_share_note_edited());
+  }
+
+  if (sessionTitleEl) {
+    sessionTitleEl.addEventListener('input', () => on_session_title_edited());
+    sessionTitleEl.addEventListener('change', () => on_session_title_edited());
+  }
+
+  function on_session_timer_input_change() {
+    if (sessionTimerPhase === 'idle') {
+      refresh_session_timer_ui(now_perf_ms());
+      refresh_session_timer_button_state();
+    }
+  }
+
+  function session_timer_set_editor_open(open) {
+    if (!sessionTimerEditorEl || !btnSessionTimerExpand) return;
+    sessionTimerEditorEl.hidden = !open;
+    btnSessionTimerExpand.setAttribute(
+      'aria-expanded',
+      open ? 'true' : 'false',
+    );
+    btnSessionTimerExpand.title = open
+      ? 'Hide session timer controls'
+      : 'Show session timer controls';
+  }
+
+  if (btnSessionTimerExpand && sessionTimerEditorEl) {
+    btnSessionTimerExpand.addEventListener('click', () => {
+      const willOpen = sessionTimerEditorEl.hidden;
+      session_timer_set_editor_open(willOpen);
+      if (willOpen) sessionTimerMinutesEl?.focus();
+    });
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!sessionTimerEditorEl || sessionTimerEditorEl.hidden) return;
+    const ae = document.activeElement;
+    if (
+      !ae ||
+      (ae !== btnSessionTimerExpand && !sessionTimerEditorEl.contains(ae))
+    )
+      return;
+    e.preventDefault();
+    session_timer_set_editor_open(false);
+    btnSessionTimerExpand.focus();
+  });
+
+  if (btnSessionTimerResetBtn) {
+    btnSessionTimerResetBtn.addEventListener('click', session_timer_reset_full);
+  }
+  if (sessionTimerMinutesEl) {
+    sessionTimerMinutesEl.addEventListener('input', on_session_timer_input_change);
+    sessionTimerMinutesEl.addEventListener('change', on_session_timer_input_change);
+  }
+  if (sessionTimerSecondsEl) {
+    sessionTimerSecondsEl.addEventListener('input', on_session_timer_input_change);
+    sessionTimerSecondsEl.addEventListener('change', on_session_timer_input_change);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible')
+      session_timer_pause_if_running();
+  });
+
+  refresh_session_timer_ui(now_perf_ms());
+  refresh_session_timer_button_state();
+
+  render_template_list();
   render_segment_list();
   sync_visual_all();
 
