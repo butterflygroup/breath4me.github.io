@@ -130,19 +130,13 @@ body {
 }
 
 .tagline {
-  /* Hidden on small viewports; shown from 640px up (see holistic polish roadmap). */
+  /* Hidden: keep minimal header; copy remains in HTML for SEO / future use. */
   display: none;
   margin: 0.35rem 0 0;
   color: var(--muted);
   max-width: 36rem;
   font-size: 0.9375rem;
   line-height: 1.45;
-}
-
-@media (min-width: 640px) {
-  .tagline {
-    display: block;
-  }
 }
 
 .main {

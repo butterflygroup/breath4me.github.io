@@ -3,7 +3,7 @@
  */
 'use strict';
 
-const CACHE_VERSION = 'breath4me-static-v31';
+const CACHE_VERSION = 'breath4me-static-v32';
 /** Paths relative to this service worker URL. */
 const PRECACHE_REL = [
   './index.html',
