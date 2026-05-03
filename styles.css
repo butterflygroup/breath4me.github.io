@@ -725,7 +725,12 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-bottom: 1rem;
+  margin: 0;
+}
+
+.pattern-panel > .transport {
+  margin-top: 1rem;
+  margin-bottom: 0;
 }
 
 .segments-head {
