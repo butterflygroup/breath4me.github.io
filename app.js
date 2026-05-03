@@ -11,12 +11,15 @@
   const MIN_SEC = 0.5;
   const URL_PARAM = 'q';
   const URL_DEBOUNCE_MS = 200;
+  const SEGMENT_LABEL_MAX_LEN = 40;
+
+  const COPY_BTN_LABEL_DEFAULT = 'Copy link';
 
   const DEFAULT_PATTERN = [
-    { kind: 'in', sec: 4 },
-    { kind: 'hold', sec: 4 },
-    { kind: 'out', sec: 4 },
-    { kind: 'hold', sec: 4 },
+    { kind: 'in', sec: 4, label: '' },
+    { kind: 'hold', sec: 4, label: '' },
+    { kind: 'out', sec: 4, label: '' },
+    { kind: 'hold', sec: 4, label: '' },
   ];
 
   const PHASE_LABELS = {
@@ -28,6 +31,7 @@
   const segmentsG = document.getElementById('viz-segments');
   const dotEl = document.getElementById('viz-dot');
   const phaseLabelEl = document.getElementById('phase-label');
+  const phaseCaptionEl = document.getElementById('phase-segment-caption');
   const phaseCountdownEl = document.getElementById('phase-countdown');
   const cycleTotalEl = document.getElementById('cycle-total');
   const segmentListEl = document.getElementById('segment-list');
@@ -40,7 +44,7 @@
     '(prefers-reduced-motion: reduce)',
   );
 
-  /** @type {{ kind: 'in'|'out'|'hold', sec: number }[]} */
+  /** @type {{ kind: 'in'|'out'|'hold', sec: number, label: string }[]} */
   let segments = [];
   /** @type {boolean} */
   let playing = false;
@@ -51,11 +55,21 @@
   let phaseOffsetMs = 0;
   /** @type {ReturnType<typeof setTimeout> | null} */
   let urlDebounceTimer = null;
+  /** @type {ReturnType<typeof setTimeout> | null} */
+  let copyResetTimer = null;
+  let copyBusy = false;
   let rafId = 0;
 
   function clampSec(n) {
     if (!Number.isFinite(n)) return MIN_SEC;
     return Math.max(MIN_SEC, Math.round(n * 10) / 10);
+  }
+
+  function sanitize_segment_label(raw) {
+    if (raw == null || typeof raw !== 'string') return '';
+    let t = raw.trim().replace(/\s+/g, ' ');
+    t = t.replace(/[\u0000-\u001F\u007F]/g, '');
+    return t.slice(0, SEGMENT_LABEL_MAX_LEN);
   }
 
   function totalMs(pattern) {
@@ -146,6 +160,7 @@
     cycleTotalEl.textContent = `${format_sec(T)}s`;
 
     if (T <= 0) {
+      phaseCaptionEl.textContent = '';
       phaseLabelEl.textContent = 'Add segments to begin';
       phaseCountdownEl.textContent = '';
       return;
@@ -154,6 +169,7 @@
     const info = resolve_phase(elapsedMs, pattern);
     if (!info.seg) return;
 
+    phaseCaptionEl.textContent = info.seg.label || '';
     const label = PHASE_LABELS[info.seg.kind];
     if (forceLabel !== false) phaseLabelEl.textContent = label;
     phaseCountdownEl.textContent = `${format_sec(info.remainMs)}s remaining`;
@@ -222,7 +238,12 @@
   }
 
   function serialize_url_payload(pattern) {
-    const s = pattern.map(({ kind, sec }) => [kind, sec]);
+    const s = pattern.map(({ kind, sec, label }) => {
+      const L = sanitize_segment_label(label);
+      const row = [kind, sec];
+      if (L) row.push(L);
+      return row;
+    });
     return JSON.stringify({ v: 1, s });
   }
 
@@ -238,7 +259,10 @@
         const sec = Number(row[1]);
         if (kind !== 'in' && kind !== 'out' && kind !== 'hold') continue;
         if (!Number.isFinite(sec)) continue;
-        out.push({ kind, sec: clampSec(sec) });
+        let label = '';
+        if (row.length > 2 && typeof row[2] === 'string')
+          label = sanitize_segment_label(row[2]);
+        out.push({ kind, sec: clampSec(sec), label });
       }
       if (out.length === 0) return null;
       return out;
@@ -263,24 +287,82 @@
     window.history.replaceState({}, '', next);
   }
 
+  function refresh_transport_disabled() {
+    const invalidPattern = segments.length === 0 || totalMs(segments) <= 0;
+
+    btnPlayPause.disabled = invalidPattern;
+
+    if (invalidPattern && copyBusy) {
+      if (copyResetTimer != null) {
+        clearTimeout(copyResetTimer);
+        copyResetTimer = null;
+      }
+      copyBusy = false;
+      btnCopy.removeAttribute('aria-busy');
+      btnCopy.textContent = COPY_BTN_LABEL_DEFAULT;
+      btnCopy.disabled = true;
+      return;
+    }
+
+    const duringClipboardWrite =
+      copyBusy && btnCopy.textContent === 'Copying…';
+
+    btnCopy.disabled = invalidPattern || duringClipboardWrite;
+  }
+
   async function copy_link() {
+    if (copyBusy) return;
+    if (segments.length === 0 || totalMs(segments) <= 0) return;
+
     const u = new URL(window.location.href);
     const payload = serialize_url_payload(segments);
     u.searchParams.set(URL_PARAM, payload);
     const text = u.toString();
 
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText)
-        await navigator.clipboard.writeText(text);
-      else window.prompt('Copy link:', text);
-    } catch {
+    clearTimeout(copyResetTimer);
+    copyResetTimer = null;
+
+    const clipboardApi =
+      navigator.clipboard && navigator.clipboard.writeText;
+
+    if (!clipboardApi) {
       window.prompt('Copy link:', text);
+      return;
     }
+
+    copyBusy = true;
+    btnCopy.setAttribute('aria-busy', 'true');
+    btnCopy.textContent = 'Copying…';
+    refresh_transport_disabled();
+
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      btnCopy.textContent = COPY_BTN_LABEL_DEFAULT;
+      btnCopy.removeAttribute('aria-busy');
+      copyBusy = false;
+      refresh_transport_disabled();
+      window.prompt('Copy link:', text);
+      return;
+    }
+
+    btnCopy.textContent = 'Copied!';
+    btnCopy.removeAttribute('aria-busy');
+    refresh_transport_disabled();
+
+    copyResetTimer = setTimeout(() => {
+      copyResetTimer = null;
+      copyBusy = false;
+      btnCopy.textContent = COPY_BTN_LABEL_DEFAULT;
+      refresh_transport_disabled();
+    }, 1750);
   }
 
   function normalize_pattern_in_place(pattern) {
-    for (let i = 0; i < pattern.length; i++)
+    for (let i = 0; i < pattern.length; i++) {
       pattern[i].sec = clampSec(pattern[i].sec);
+      pattern[i].label = sanitize_segment_label(pattern[i].label);
+    }
     return pattern;
   }
 
@@ -346,8 +428,29 @@
         on_pattern_edited(true);
       });
 
+      const labLbl = document.createElement('label');
+      labLbl.className = 'segment-label-wrap';
+      labLbl.innerHTML =
+        '<span>Circle label (optional)</span><input class="segment-label" type="text" maxlength="' +
+        SEGMENT_LABEL_MAX_LEN +
+        '" inputmode="text" autocomplete="off" placeholder="Optional note" />';
+      const lblInp = labLbl.querySelector('input');
+      lblInp.value = seg.label ?? '';
+
+      lblInp.addEventListener('input', () => {
+        seg.label = sanitize_segment_label(lblInp.value);
+        if (lblInp.value !== seg.label) lblInp.value = seg.label;
+        on_pattern_edited(true);
+      });
+      lblInp.addEventListener('change', () => {
+        seg.label = sanitize_segment_label(lblInp.value);
+        lblInp.value = seg.label;
+        on_pattern_edited(true);
+      });
+
       fields.appendChild(labKind);
       fields.appendChild(labDur);
+      fields.appendChild(labLbl);
 
       const moves = document.createElement('div');
       moves.className = 'segment-row-moves';
@@ -405,11 +508,7 @@
       segmentListEl.appendChild(li);
     });
 
-    btnPlayPause.disabled =
-      segments.length === 0 || totalMs(segments) <= 0;
-
-    btnCopy.disabled =
-      segments.length === 0 || totalMs(segments) <= 0;
+    refresh_transport_disabled();
   }
 
   function on_pattern_edited(listOnly) {
@@ -465,7 +564,7 @@
   btnReset.addEventListener('click', () => apply_default_pattern());
 
   btnAdd.addEventListener('click', () => {
-    segments.push({ kind: 'in', sec: 4 });
+    segments.push({ kind: 'in', sec: 4, label: '' });
     render_segment_list();
     on_pattern_edited(true);
   });
