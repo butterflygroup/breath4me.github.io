@@ -1,5 +1,6 @@
 /**
- * Built-in pattern presets for Breath with Daniel (shared URL / template list).
+ * Built-in pattern presets for Breathed with Daniel (shared URL / template list).
+ * Optional per-preset `sessionGoalMinutes` (0–180); omit for the app default (5 minutes).
  */
 
 function preset_seg(kind, sec) {

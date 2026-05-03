@@ -33,11 +33,13 @@ Then visit `http://127.0.0.1:4173`.
 
 ## How sharing works
 
-When you edit the pattern (or load a preset), the URL’s **`?q=`** query contains **JSON** with your segments and optional **`d`** (Pattern Details / recipient note) and **`t`** (title). That string is **sanitized and length-capped** (`SHARE_NOTE_MAX_LEN` and related limits in **`app.js`**). Very long notes make URLs long; some environments cap URL length—if **Copy link** fails, shorten Pattern Details (the app logs a **console warning** when the share URL is unusually long).
+When you edit the pattern (or load a preset), the URL’s **`?q=`** query contains **JSON** with your segments and optional **`d`** (Pattern Details / recipient note), **`t`** (title), and **`g`** (session practice goal length in **whole seconds**, e.g. **300** for five minutes). The app always emits **`g`** when it updates the URL. Legacy links without **`g`** load with a **five-minute** session goal. Invalid or non-finite **`g`** values fall back to that same default.
 
-Built-in presets live in **`patterns.js`** (`PATTERN_TEMPLATES`). To add one: append an object with **`id`**, **`label`**, **`segments`**, and optionally **`shareNote`** (see existing entries).
+That string is **sanitized and length-capped** (`SHARE_NOTE_MAX_LEN` and related limits in **`app.js`**). Very long notes make URLs long; some environments cap URL length—if **Copy link** fails, shorten Pattern Details (the app logs a **console warning** when the share URL is unusually long).
 
-**Reset pattern** restores the **default rhythm** and also clears Pattern title and Pattern Details (and **`t`** / **`d`** in the serialized URL payload).
+Built-in presets live in **`patterns.js`** (`PATTERN_TEMPLATES`). To add one: append an object with **`id`**, **`label`**, **`segments`**, and optionally **`shareNote`** or **`sessionGoalMinutes`** (defaults to five minutes when omitted; clamped **`0`**–**`SESSION_TIMER_MAX_MINUTES`**).
+
+**Reset pattern** restores the **default rhythm**, **default five-minute session goal**, Pattern title/details, and aligns **`t`**, **`d`**, **`g`** in the serialized URL payload.
 
 ---
 

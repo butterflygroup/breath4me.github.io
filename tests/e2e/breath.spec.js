@@ -10,6 +10,8 @@ test.describe('Presets', () => {
       .getByRole('button', { name: /Load pattern: Box breathing/i })
       .click();
     await expect(page.locator('#cycle-total')).toContainText(/16/);
+    await expect(page.locator('#session-timer-minutes')).toHaveValue('5');
+    await expect(page.locator('#session-timer-seconds')).toHaveValue('0');
   });
 });
 
@@ -39,6 +41,8 @@ test.describe('Pattern title & URL payload', () => {
       DEFAULT_PAGE_TITLE,
     );
     await expect(page).toHaveTitle(DEFAULT_PAGE_TITLE);
+    await expect(page.locator('#session-timer-minutes')).toHaveValue('5');
+    await expect(page.locator('#session-timer-seconds')).toHaveValue('0');
   });
 
   test('URL q with t and d populates fields and header', async ({ page }) => {
@@ -57,5 +61,19 @@ test.describe('Pattern title & URL payload', () => {
     await expect(page.locator('#header-site-title')).toHaveText(
       'Deep link title',
     );
+    await expect(page.locator('#session-timer-minutes')).toHaveValue('5');
+    await expect(page.locator('#session-timer-seconds')).toHaveValue('0');
+  });
+
+  test('URL q with g sets session goal', async ({ page }) => {
+    const payload = {
+      v: 1,
+      s: [['in', 3]],
+      g: 125,
+    };
+    const q = encodeURIComponent(JSON.stringify(payload));
+    await page.goto(`/?q=${q}`);
+    await expect(page.locator('#session-timer-minutes')).toHaveValue('2');
+    await expect(page.locator('#session-timer-seconds')).toHaveValue('5');
   });
 });

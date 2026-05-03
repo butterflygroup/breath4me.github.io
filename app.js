@@ -20,6 +20,11 @@ import { PATTERN_TEMPLATES } from './patterns.js';
   const COPY_BTN_LABEL_DEFAULT = 'Copy link';
   /** Max session timer goal duration (minutes + seconds capped to this wall clock). */
   const SESSION_TIMER_MAX_MINUTES = 180;
+  /** Default practice goal loaded from templates / legacy URLs missing `g`. */
+  const DEFAULT_SESSION_GOAL_MINUTES = 5;
+  const DEFAULT_SESSION_GOAL_SEC =
+    DEFAULT_SESSION_GOAL_MINUTES * 60;
+  const SESSION_GOAL_CAP_SEC = SESSION_TIMER_MAX_MINUTES * 60;
 
   const DEFAULT_PATTERN = [
     {
@@ -140,6 +145,8 @@ import { PATTERN_TEMPLATES } from './patterns.js';
   let sessionTimerOvElapsedPaused = null;
   /** Announce when segment index / nasal / mouth / chest / stomach cue changes. */
   let lastPhaseAnnounceKey = '';
+  /** Bumped on template pick so SR announce refreshes even when cue fingerprint matches. */
+  let templateReadoutNonce = 0;
 
   function clampSec(n) {
     if (!Number.isFinite(n)) return MIN_SEC;
@@ -218,6 +225,48 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     const capSec = SESSION_TIMER_MAX_MINUTES * 60;
     if (totalSec > capSec) totalSec = capSec;
     return totalSec * 1000;
+  }
+
+  /** @returns {number} whole seconds (same caps as {@link session_target_ms_from_inputs}). */
+  function session_goal_seconds_from_inputs() {
+    return Math.floor(session_target_ms_from_inputs() / 1000);
+  }
+
+  /**
+   * @param {unknown} obj parsed `q` root
+   * @returns {number} seconds; missing / invalid **`g`** → {@link DEFAULT_SESSION_GOAL_SEC}.
+   */
+  function parse_q_session_goal_seconds(obj) {
+    if (obj == null || typeof obj !== 'object' || !('g' in obj)) {
+      return DEFAULT_SESSION_GOAL_SEC;
+    }
+    const raw = /** @type {{ g?: unknown }} */ (obj).g;
+    const n = typeof raw === 'string' ? Number(raw.trim()) : Number(raw);
+    if (!Number.isFinite(n)) return DEFAULT_SESSION_GOAL_SEC;
+    const r = Math.round(n);
+    return Math.min(Math.max(0, r), SESSION_GOAL_CAP_SEC);
+  }
+
+  /**
+   * @param {number} totalSec clamped applied goal
+   * @param {{ skipScheduleUrl?: boolean }} [opts] pass **`skipScheduleUrl`** during init before first debounced **`schedule_url_replace`**
+   */
+  function apply_session_goal_total_seconds(totalSec, opts = {}) {
+    let sec = Math.floor(
+      Math.min(
+        Math.max(0, Number(totalSec) || 0),
+        SESSION_GOAL_CAP_SEC,
+      ),
+    );
+    const mn = Math.floor(sec / 60);
+    const sc = sec % 60;
+    if (sessionTimerMinutesEl) sessionTimerMinutesEl.value = String(mn);
+    if (sessionTimerSecondsEl) sessionTimerSecondsEl.value = String(sc);
+    if (opts.skipScheduleUrl === true) {
+      on_session_timer_input_change({ skipUrl: true });
+    } else {
+      on_session_timer_input_change();
+    }
   }
 
   /** @param {number} totalMs */
@@ -754,7 +803,7 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     );
 
     if (phaseAnnounceEl) {
-      const annKey = `${info.index}|${nCue}|${mCue}|${chestCue}|${stomachCue}`;
+      const annKey = `${templateReadoutNonce}|${info.index}|${nCue}|${mCue}|${chestCue}|${stomachCue}`;
       if (annKey !== lastPhaseAnnounceKey) {
         lastPhaseAnnounceKey = annKey;
         let msg = label;
@@ -850,12 +899,13 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     }
     if (d) obj.d = d;
     if (tTitle) obj.t = tTitle;
+    obj.g = session_goal_seconds_from_inputs();
     return JSON.stringify(obj);
   }
 
   /**
    * @param {string | null} raw
-   * @returns {{ segments: typeof segments, shareNote: string, sessionTitle: string } | null}
+   * @returns {{ segments: typeof segments, shareNote: string, sessionTitle: string, sessionGoalSeconds: number } | null}
    */
   function try_parse_q(raw) {
     if (!raw) return null;
@@ -866,6 +916,7 @@ import { PATTERN_TEMPLATES } from './patterns.js';
         typeof obj.d === 'string' ? sanitize_share_note(obj.d) : '';
       const parsedTitle =
         typeof obj.t === 'string' ? sanitize_session_title(obj.t) : '';
+      const sessionGoalSeconds = parse_q_session_goal_seconds(obj);
 
       if (obj.v === 1) {
         const out = [];
@@ -882,6 +933,7 @@ import { PATTERN_TEMPLATES } from './patterns.js';
           segments: out,
           shareNote: parsedNote,
           sessionTitle: parsedTitle,
+          sessionGoalSeconds,
         };
       }
       if (obj.v === 2) {
@@ -895,6 +947,7 @@ import { PATTERN_TEMPLATES } from './patterns.js';
           segments: out,
           shareNote: parsedNote,
           sessionTitle: parsedTitle,
+          sessionGoalSeconds,
         };
       }
       return null;
@@ -1369,6 +1422,8 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     shareNote = '';
     sessionTitle = '';
     if (shareDescriptionEl) shareDescriptionEl.value = '';
+    session_timer_reset_full();
+    apply_session_goal_total_seconds(DEFAULT_SESSION_GOAL_SEC);
     sync_title_ui();
     sync_share_textarea_height();
     schedule_url_replace();
@@ -1385,7 +1440,20 @@ import { PATTERN_TEMPLATES } from './patterns.js';
       btn.textContent = t.label;
       btn.setAttribute('aria-label', `Load pattern: ${t.label}`);
       btn.addEventListener('click', () => {
+        templateReadoutNonce += 1;
         apply_preset(t.segments);
+        session_timer_reset_full();
+        const tmRaw = /** @type {{ sessionGoalMinutes?: unknown }} */ (t)
+          .sessionGoalMinutes;
+        const tmplGoalMin =
+          typeof tmRaw === 'number' &&
+          Number.isFinite(tmRaw) &&
+          tmRaw >= 0 &&
+          tmRaw <= SESSION_TIMER_MAX_MINUTES
+            ? Math.floor(tmRaw)
+            : DEFAULT_SESSION_GOAL_MINUTES;
+        apply_session_goal_total_seconds(tmplGoalMin * 60);
+        session_timer_set_editor_open(false);
         sessionTitle = sanitize_session_title(t.label);
         sync_title_ui();
         const raw =
@@ -1409,10 +1477,13 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     lastPhaseAnnounceKey = '';
     const u = new URL(window.location.href);
     const parsed = try_parse_q(u.searchParams.get(URL_PARAM));
+    /** @type {number} */
+    let goalSec = DEFAULT_SESSION_GOAL_SEC;
     if (parsed && parsed.segments.length > 0) {
       segments = parsed.segments;
       shareNote = parsed.shareNote;
       sessionTitle = parsed.sessionTitle;
+      goalSec = parsed.sessionGoalSeconds;
     } else {
       segments = structuredClone(DEFAULT_PATTERN);
       shareNote = '';
@@ -1426,6 +1497,9 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     if (shareDescriptionEl) shareDescriptionEl.value = shareNote;
     sync_title_ui();
     sync_share_textarea_height();
+
+    session_timer_reset_full();
+    apply_session_goal_total_seconds(goalSec, { skipScheduleUrl: true });
   }
 
   function on_session_title_edited() {
@@ -1510,10 +1584,13 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     sessionTitleEl.addEventListener('change', () => on_session_title_edited());
   }
 
-  function on_session_timer_input_change() {
+  function on_session_timer_input_change(opts) {
+    const skipUrl =
+      opts && typeof opts === 'object' && opts.skipUrl === true;
     if (sessionTimerPhase === 'idle') {
       refresh_session_timer_ui(now_perf_ms());
       refresh_session_timer_button_state();
+      if (!skipUrl) schedule_url_replace();
     }
   }
 
