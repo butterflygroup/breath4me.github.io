@@ -51,7 +51,11 @@
 
       <main class="main">
         <div class="main-viz-stack">
-        <section class="viz" aria-label="Breathing cycle visualization">
+        <section
+          id="viz-root"
+          class="viz"
+          aria-label="Breathing cycle visualization"
+        >
           <div class="viz-ring-wrap">
             <svg
               id="viz-svg"
@@ -72,8 +76,17 @@
                 r="76"
                 fill="none"
               />
+              <g id="viz-ticks" class="viz-ticks" aria-hidden="true"></g>
               <g id="viz-segments" class="viz-segments" aria-hidden="true"></g>
-              <circle id="viz-dot" class="viz-dot" r="8" aria-hidden="true" />
+              <g
+                id="viz-dot-marker"
+                class="viz-dot-marker"
+                transform="translate(100,24)"
+                aria-hidden="true"
+              >
+                <circle class="viz-dot-outer" r="11" cx="0" cy="0" />
+                <circle id="viz-dot-core" class="viz-dot-core" r="6.75" cx="0" cy="0" />
+              </g>
             </svg>
 
             <div

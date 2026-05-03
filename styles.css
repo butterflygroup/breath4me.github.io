@@ -188,16 +188,19 @@ body {
 }
 
 .viz {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 96%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  border-radius: 16px;
   padding: 1.25rem 1rem;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--text) 4%, transparent),
+    0 14px 38px color-mix(in srgb, var(--bg) 55%, #000 12%);
 }
 
 .viz-ring-wrap {
   position: relative;
   width: 100%;
-  max-width: 240px;
+  max-width: min(280px, 72vmin);
   margin-inline: auto;
   aspect-ratio: 1;
 }
@@ -218,6 +221,9 @@ body {
   display: block;
   width: 100%;
   height: 100%;
+  filter: drop-shadow(
+    0 5px 14px color-mix(in srgb, var(--bg) 50%, #0a0c10 35%)
+  );
 }
 
 .viz-cue-label {
@@ -355,13 +361,16 @@ body {
   width: min(52%, 100%);
   max-width: 52%;
   min-width: 0;
-  padding-inline: 2px;
+  padding: 0.45rem 0.5rem 0.52rem;
   box-sizing: border-box;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 88%, var(--muted));
+  border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
 }
 
 .viz-track-bg {
-  stroke: var(--border);
-  stroke-width: 12;
+  stroke: color-mix(in srgb, var(--border) 45%, var(--muted));
+  stroke-width: 13;
 }
 
 .viz-phase-in {
@@ -376,16 +385,86 @@ body {
   stroke: var(--phase-hold);
 }
 
-.viz-segments path {
+.viz-segments-path-soft {
   fill: none;
   stroke-linecap: round;
-  stroke-width: 12;
+  stroke-width: 19;
 }
 
-.viz-dot {
+.viz-segments-path-strong {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 11.5;
+}
+
+.viz-phase-in.viz-segments-path-soft {
+  opacity: 0.24;
+}
+
+.viz-phase-out.viz-segments-path-soft {
+  opacity: 0.22;
+}
+
+.viz-phase-hold.viz-segments-path-soft {
+  opacity: 0.2;
+}
+
+.viz-ticks {
+  pointer-events: none;
+}
+
+.viz-tick {
+  stroke: color-mix(in srgb, var(--muted) 88%, var(--border));
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+.viz-dot-marker {
+  pointer-events: none;
+}
+
+.viz-dot-outer {
+  fill: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  stroke: color-mix(in srgb, var(--accent) 52%, var(--border));
+  stroke-width: 1.35;
+}
+
+.viz-dot-core {
   fill: var(--accent);
-  stroke: color-mix(in srgb, var(--surface), transparent 20%);
-  stroke-width: 2;
+  stroke: color-mix(in srgb, var(--surface) 40%, transparent);
+  stroke-width: 1.4;
+  transform-box: fill-box;
+  transform-origin: center center;
+}
+
+#viz-svg[data-phase='in'] .viz-dot-core {
+  fill: color-mix(in srgb, var(--phase-in) 38%, var(--accent));
+}
+
+#viz-svg[data-phase='out'] .viz-dot-core {
+  fill: color-mix(in srgb, var(--phase-out) 38%, var(--accent));
+}
+
+#viz-svg[data-phase='hold'] .viz-dot-core {
+  fill: color-mix(in srgb, var(--phase-hold) 35%, var(--accent));
+}
+
+@keyframes viz-dot-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.07);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .viz.viz-playing .viz-dot-core {
+    animation: viz-dot-pulse 3.1s ease-in-out infinite alternate;
+  }
 }
 
 .viz-readout-meta {
@@ -540,8 +619,9 @@ body {
 .viz-center-readout .phase-label {
   margin: 0;
   font-size: clamp(0.95rem, 3.8vmin, 1.125rem);
-  font-weight: 600;
-  line-height: 1.25;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.28;
   color: var(--text);
 }
 
@@ -1159,10 +1239,14 @@ details[open] > .segment-cues-summary {
   color: var(--danger);
 }
 
-/* Cycle starts at top; dot moves clockwise — same convention as arcs in JS. */
+/* Cycle starts at top; marker moves clockwise — same convention as arcs in JS. */
 @media (prefers-reduced-motion: reduce) {
-  .viz-dot {
+  .viz-dot-marker {
     visibility: hidden;
+  }
+
+  .viz.viz-playing .viz-dot-core {
+    animation: none;
   }
 
   .btn,

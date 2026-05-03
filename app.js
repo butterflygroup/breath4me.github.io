@@ -72,7 +72,10 @@ import { PATTERN_TEMPLATES } from './patterns.js';
   };
 
   const segmentsG = document.getElementById('viz-segments');
-  const dotEl = document.getElementById('viz-dot');
+  const dotEl = document.getElementById('viz-dot-marker');
+  const vizRootEl = document.getElementById('viz-root');
+  const vizSvgEl = document.getElementById('viz-svg');
+  const vizTicksG = document.getElementById('viz-ticks');
   const phaseLabelEl = document.getElementById('phase-label');
   const phaseCaptionEl = document.getElementById('phase-segment-caption');
   const phaseAnnounceEl = document.getElementById('phase-announce');
@@ -648,6 +651,42 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     return `M ${x1} ${y1} A ${RING_R} ${RING_R} 0 ${large} 1 ${x2} ${y2}`;
   }
 
+  /** Small radial strokes at segment starts (checkpoint cues). */
+  function radial_tick_endpoints(frac) {
+    const ang = -Math.PI / 2 + frac * Math.PI * 2;
+    const rIn = RING_R - 9;
+    const rOut = RING_R + 9;
+    return {
+      x1: VIEW_CX + rIn * Math.cos(ang),
+      y1: VIEW_CY + rIn * Math.sin(ang),
+      x2: VIEW_CX + rOut * Math.cos(ang),
+      y2: VIEW_CY + rOut * Math.sin(ang),
+    };
+  }
+
+  function render_ring_ticks(pattern) {
+    if (!vizTicksG) return;
+    vizTicksG.innerHTML = '';
+    const t = totalMs(pattern);
+    if (t <= 0) return;
+    let acc = 0;
+    for (let i = 0; i < pattern.length; i++) {
+      const frac = acc / t;
+      const pts = radial_tick_endpoints(frac);
+      const line = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'line',
+      );
+      line.setAttribute('x1', String(pts.x1));
+      line.setAttribute('y1', String(pts.y1));
+      line.setAttribute('x2', String(pts.x2));
+      line.setAttribute('y2', String(pts.y2));
+      line.setAttribute('class', 'viz-tick');
+      vizTicksG.appendChild(line);
+      acc += pattern[i].sec * 1000;
+    }
+  }
+
   function kindClass(kind) {
     if (kind === 'in') return 'viz-phase-in';
     if (kind === 'out') return 'viz-phase-out';
@@ -655,6 +694,7 @@ import { PATTERN_TEMPLATES } from './patterns.js';
   }
 
   function render_segments_svg(pattern) {
+    render_ring_ticks(pattern);
     segmentsG.innerHTML = '';
     const t = totalMs(pattern);
     if (t <= 0) return;
@@ -665,18 +705,31 @@ import { PATTERN_TEMPLATES } from './patterns.js';
       const f1 = acc / t;
       const d = arc_path_d(f0, f1);
       if (!d) continue;
-      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      p.setAttribute('d', d);
-      p.setAttribute('class', kindClass(seg.kind));
-      segmentsG.appendChild(p);
+      const kc = kindClass(seg.kind);
+
+      const pSoft = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'path',
+      );
+      pSoft.setAttribute('d', d);
+      pSoft.setAttribute('class', `${kc} viz-segments-path-soft`);
+      segmentsG.appendChild(pSoft);
+
+      const pStrong = document.createElementNS(
+        'http://www.w3.org/2000/svg',
+        'path',
+      );
+      pStrong.setAttribute('d', d);
+      pStrong.setAttribute('class', `${kc} viz-segments-path-strong`);
+      segmentsG.appendChild(pStrong);
     }
   }
 
   function place_dot_frac(frac) {
+    if (!dotEl) return;
     const f = frac - Math.floor(frac);
     const [x, y] = polar_xy(f);
-    dotEl.setAttribute('cx', String(x));
-    dotEl.setAttribute('cy', String(y));
+    dotEl.setAttribute('transform', `translate(${x},${y})`);
   }
 
   function resolve_phase(elapsedMs, pattern) {
@@ -719,6 +772,7 @@ import { PATTERN_TEMPLATES } from './patterns.js';
 
     if (T <= 0) {
       lastPhaseAnnounceKey = '';
+      if (vizSvgEl) vizSvgEl.removeAttribute('data-phase');
       if (phaseAnnounceEl) phaseAnnounceEl.textContent = '';
       if (vizNasalCueEl) {
         vizNasalCueEl.classList.add('viz-nasal-cue--off');
@@ -743,6 +797,8 @@ import { PATTERN_TEMPLATES } from './patterns.js';
 
     const info = resolve_phase(elapsedMs, pattern);
     if (!info.seg) return;
+
+    if (vizSvgEl) vizSvgEl.setAttribute('data-phase', info.seg.kind);
 
     phaseCaptionEl.textContent = info.seg.label || '';
     const label = PHASE_LABELS[info.seg.kind];
@@ -879,6 +935,7 @@ import { PATTERN_TEMPLATES } from './patterns.js';
       playing = true;
     }
     refresh_session_timer_button_state();
+    if (vizRootEl) vizRootEl.classList.toggle('viz-playing', playing);
   }
 
   function serialize_url_payload(pattern) {
@@ -1070,11 +1127,14 @@ import { PATTERN_TEMPLATES } from './patterns.js';
     render_segments_svg(segments);
     const T = totalMs(segments);
     if (T <= 0) {
-      dotEl.style.visibility = 'hidden';
+      if (dotEl) dotEl.style.visibility = 'hidden';
       update_readout_from_elapsed(0, segments);
       return;
     }
-    dotEl.style.visibility = prefersReducedMotion.matches ? 'hidden' : 'visible';
+    if (dotEl)
+      dotEl.style.visibility = prefersReducedMotion.matches
+        ? 'hidden'
+        : 'visible';
     const now =
       typeof performance !== 'undefined' ? performance.now() : Date.now();
     tick(now);
