@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Breath4me</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <h1>Breath4me</h1>
+        <p class="tagline">
+          Custom breathing rhythm on a circle. One full lap is one cycle.
+        </p>
+      </header>
+
+      <main class="main">
+        <section class="viz" aria-label="Breathing cycle visualization">
+          <svg
+            id="viz-svg"
+            class="viz-svg"
+            viewBox="0 0 200 200"
+            role="img"
+            aria-labelledby="viz-svg-title viz-svg-desc"
+          >
+            <title id="viz-svg-title">Breathing cycle ring and moving marker</title>
+            <desc id="viz-svg-desc">
+              Segmented ring colored by inhale, exhale, and hold. A dot travels clockwise from the top once per cycle.
+            </desc>
+            <circle
+              id="viz-track-bg"
+              class="viz-track-bg"
+              cx="100"
+              cy="100"
+              r="76"
+              fill="none"
+            />
+            <g id="viz-segments" class="viz-segments" aria-hidden="true"></g>
+            <circle id="viz-dot" class="viz-dot" r="8" aria-hidden="true" />
+          </svg>
+
+          <div class="viz-readout">
+            <p class="phase-label" id="phase-label" aria-live="polite">—</p>
+            <p class="phase-countdown" id="phase-countdown" aria-live="polite"></p>
+            <p class="cycle-total">
+              Cycle: <strong id="cycle-total">0s</strong>
+            </p>
+          </div>
+        </section>
+
+        <section class="controls" aria-label="Pattern builder">
+          <div class="transport">
+            <button type="button" id="btn-play-pause" class="btn primary">
+              Play
+            </button>
+            <button type="button" id="btn-reset-pattern" class="btn">
+              Reset to box 4-4-4-4
+            </button>
+            <button type="button" id="btn-copy-link" class="btn">
+              Copy link
+            </button>
+          </div>
+
+          <div class="segments-head">
+            <h2>Pattern</h2>
+            <button type="button" id="btn-add-segment" class="btn small">
+              Add segment
+            </button>
+          </div>
+
+          <ul id="segment-list" class="segment-list"></ul>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>
