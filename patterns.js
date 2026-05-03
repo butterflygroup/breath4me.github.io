@@ -169,13 +169,13 @@ export const PATTERN_TEMPLATES = [
       'Often cited relaxation pacing: 5–10 min diaphragmatic (belly) breathing with mindfulness focus. Some people combine with imagining tension easing on the exhale—not medical advice.',
   },
   {
-    id: 'awaken-5-2-3-2',
+    id: 'awaken-5-13-25-13',
     label: 'Awaken',
     segments: [
       preset_seg('in', 5),
-      preset_seg('hold', 2),
-      preset_seg('out', 3),
-      preset_seg('hold', 2),
+      preset_seg('hold', 1.3),
+      preset_seg('out', 2.5),
+      preset_seg('hold', 1.3),
     ],
     shareNote: 'Morning energizing cadence—not medical advice.',
   },
